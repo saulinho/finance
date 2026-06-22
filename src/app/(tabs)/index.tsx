@@ -10,7 +10,7 @@ import { PayableRow } from '@/components/payable-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, TabBarHeight } from '@/constants/theme';
-import { listPayables, setPaid } from '@/db/payables';
+import { listPayables } from '@/db/payables';
 import type { PayableWithNames } from '@/db/types';
 import { formatBRL } from '@/lib/money';
 import { onPendingDrained } from '@/notifications/pending';
@@ -59,14 +59,7 @@ export default function PayablesScreen() {
           ]}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           renderItem={({ item }) => (
-            <PayableRow
-              payable={item}
-              onPress={() => router.push(`/conta?id=${item.id}`)}
-              onTogglePaid={async () => {
-                await setPaid(db, item.id, item.paid === 0);
-                reload();
-              }}
-            />
+            <PayableRow payable={item} onPress={() => router.push(`/conta?id=${item.id}`)} />
           )}
           ListEmptyComponent={
             <ThemedText themeColor="textSecondary" style={styles.empty}>

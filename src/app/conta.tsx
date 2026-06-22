@@ -1,5 +1,5 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -11,9 +11,9 @@ import { Spacing } from '@/constants/theme';
 import { listCategories, listSubcategories } from '@/db/categories';
 import { createPayable, deletePayable, getPayable, updatePayable } from '@/db/payables';
 import type { Category, Subcategory } from '@/db/types';
+import { useTheme } from '@/hooks/use-theme';
 import { formatDateBR, fromISODate, toISODate } from '@/lib/date';
 import { formatBRL, parseBRLToCents } from '@/lib/money';
-import { useTheme } from '@/hooks/use-theme';
 
 export default function PayableFormScreen() {
   const db = useSQLiteContext();
@@ -22,11 +22,15 @@ export default function PayableFormScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const editingId = id ? Number(id) : null;
 
-  const [supplier, setSupplier] = useState('');
-  const [amountText, setAmountText] = useState('');
-  const [dueDate, setDueDate] = useState(() => toISODate(new Date()));
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
+  const [supplier, setSupplier] = useState('');
+  // Whether the user manually edited the supplier — once true we stop
+  // auto-filling it from the selected subcategory.
+  const [supplierTouched, setSupplierTouched] = useState(false);
+  const [amountText, setAmountText] = useState('');
+  const [dueDate, setDueDate] = useState(''); // '' = no payment date yet
+  const [paid, setPaid] = useState(false);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -38,11 +42,13 @@ export default function PayableFormScreen() {
     if (editingId !== null) {
       getPayable(db, editingId).then((p) => {
         if (!p) return;
-        setSupplier(p.supplier);
-        setAmountText(formatBRL(p.amount_cents));
-        setDueDate(p.due_date);
         setCategoryId(p.category_id);
         setSubcategoryId(p.subcategory_id);
+        setSupplier(p.supplier);
+        setSupplierTouched(true); // keep the saved supplier intact
+        setAmountText(formatBRL(p.amount_cents));
+        setDueDate(p.due_date ?? '');
+        setPaid(p.paid === 1);
       });
     }
   }, [db, editingId]);
@@ -62,6 +68,32 @@ export default function PayableFormScreen() {
 
   const amountCents = useMemo(() => parseBRLToCents(amountText), [amountText]);
 
+  function handleCategoryChange(value: number | null) {
+    setCategoryId(value);
+    setSubcategoryId(null);
+    if (!supplierTouched) setSupplier('');
+  }
+
+  function handleSubcategoryChange(value: number | null) {
+    setSubcategoryId(value);
+    // Auto-fill the supplier with the subcategory name unless edited by hand.
+    if (!supplierTouched) {
+      const sub = subcategories.find((s) => s.id === value);
+      setSupplier(sub?.name ?? '');
+    }
+  }
+
+  function togglePaid() {
+    const next = !paid;
+    setPaid(next);
+    // Marking as paid fills today's date (still editable); unmarking clears it.
+    if (next) {
+      if (!dueDate) setDueDate(toISODate(new Date()));
+    } else {
+      setDueDate('');
+    }
+  }
+
   async function handleSave() {
     if (!supplier.trim()) {
       Alert.alert('Campo obrigatório', 'Informe o nome do fornecedor.');
@@ -78,6 +110,7 @@ export default function PayableFormScreen() {
       due_date: dueDate,
       category_id: categoryId,
       subcategory_id: subcategoryId,
+      paid,
     };
 
     if (editingId !== null) {
@@ -105,11 +138,44 @@ export default function PayableFormScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {editingId !== null && (
+        <Stack.Screen
+          options={{
+            headerRight: () => (
+              <Pressable
+                onPress={handleDelete}
+                hitSlop={8}
+                style={({ pressed }) => pressed && styles.pressed}>
+                <ThemedText style={styles.deleteButtonText}>Excluir</ThemedText>
+              </Pressable>
+            ),
+          }}
+        />
+      )}
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <SelectField
+          label="Categoria"
+          value={categoryId}
+          options={categories}
+          onSelect={handleCategoryChange}
+        />
+
+        <SelectField
+          label="Subcategoria"
+          value={subcategoryId}
+          options={subcategories}
+          onSelect={handleSubcategoryChange}
+          disabled={categoryId === null}
+          placeholder={categoryId === null ? 'Escolha uma categoria primeiro' : 'Selecionar'}
+        />
+
         <Field label="Fornecedor">
           <TextInput
             value={supplier}
-            onChangeText={setSupplier}
+            onChangeText={(text) => {
+              setSupplier(text);
+              setSupplierTouched(true);
+            }}
             placeholder="Nome do fornecedor"
             placeholderTextColor={theme.textSecondary}
             style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
@@ -127,15 +193,26 @@ export default function PayableFormScreen() {
           />
         </Field>
 
+        <Pressable
+          onPress={togglePaid}
+          style={({ pressed }) => [styles.paidRow, pressed && styles.pressed]}>
+          <ThemedView type={paid ? 'backgroundSelected' : 'backgroundElement'} style={styles.check}>
+            <ThemedText themeColor={paid ? 'text' : 'textSecondary'}>{paid ? '✓' : ''}</ThemedText>
+          </ThemedView>
+          <ThemedText type="smallBold">Pago</ThemedText>
+        </Pressable>
+
         <Field label="Data de pagamento">
           <Pressable onPress={() => setShowPicker(true)}>
             <ThemedView type="backgroundElement" style={styles.input}>
-              <ThemedText>{formatDateBR(dueDate)}</ThemedText>
+              <ThemedText themeColor={dueDate ? 'text' : 'textSecondary'}>
+                {dueDate ? formatDateBR(dueDate) : 'Selecionar (opcional)'}
+              </ThemedText>
             </ThemedView>
           </Pressable>
           {showPicker && (
             <DateTimePicker
-              value={fromISODate(dueDate)}
+              value={dueDate ? fromISODate(dueDate) : new Date()}
               mode="date"
               display={Platform.OS === 'ios' ? 'inline' : 'default'}
               onChange={(event, selected) => {
@@ -148,40 +225,11 @@ export default function PayableFormScreen() {
           )}
         </Field>
 
-        <SelectField
-          label="Categoria"
-          value={categoryId}
-          options={categories}
-          onSelect={(value) => {
-            setCategoryId(value);
-            setSubcategoryId(null);
-          }}
-        />
-
-        <SelectField
-          label="Subcategoria"
-          value={subcategoryId}
-          options={subcategories}
-          onSelect={setSubcategoryId}
-          disabled={categoryId === null}
-          placeholder={categoryId === null ? 'Escolha uma categoria primeiro' : 'Selecionar'}
-        />
-
         <Pressable
           onPress={handleSave}
           style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
           <ThemedText style={styles.saveButtonText}>Salvar</ThemedText>
         </Pressable>
-
-        {editingId !== null && (
-          <Pressable
-            onPress={handleDelete}
-            style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}>
-            <ThemedText type="link" style={styles.deleteButtonText}>
-              Excluir conta
-            </ThemedText>
-          </Pressable>
-        )}
       </ScrollView>
     </ThemedView>
   );
@@ -218,6 +266,19 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     fontSize: 16,
   },
+  paidRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.one,
+  },
+  check: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   saveButton: {
     marginTop: Spacing.three,
     backgroundColor: '#208AEF',
@@ -230,12 +291,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
   },
-  deleteButton: {
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-  },
   deleteButtonText: {
     color: '#e5484d',
+    fontWeight: '700',
   },
   pressed: {
     opacity: 0.8,
