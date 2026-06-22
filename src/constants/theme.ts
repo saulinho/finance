@@ -59,5 +59,7 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+/** Height of the custom bottom tab bar, excluding the bottom safe-area inset. */
+export const TabBarHeight = 54;

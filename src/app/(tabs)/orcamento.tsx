@@ -2,11 +2,12 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddFab } from '@/components/add-fab';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { Spacing, TabBarHeight } from '@/constants/theme';
 import { listBudgets, type BudgetWithNames } from '@/db/budgets';
 import { addMonths, currentMonth, formatMonthBR } from '@/lib/month';
 import { formatBRL } from '@/lib/money';
@@ -14,6 +15,7 @@ import { formatBRL } from '@/lib/money';
 export default function BudgetScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [month, setMonth] = useState(() => currentMonth());
   const [budgets, setBudgets] = useState<BudgetWithNames[]>([]);
 
@@ -44,7 +46,10 @@ export default function BudgetScreen() {
         <FlatList
           data={budgets}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: insets.bottom + TabBarHeight + Spacing.six },
+          ]}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           renderItem={({ item }) => {
             const categoria = [item.category_name, item.subcategory_name]
@@ -81,11 +86,10 @@ export default function BudgetScreen() {
         />
       </SafeAreaView>
 
-      <Pressable
+      <AddFab
         onPress={() => router.push(`/orcamento-form?month=${month}`)}
-        style={({ pressed }) => [styles.fab, pressed && styles.pressed]}>
-        <ThemedText style={styles.fabIcon}>＋</ThemedText>
-      </Pressable>
+        accessibilityLabel="Nova previsão"
+      />
     </ThemedView>
   );
 }
@@ -128,7 +132,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.six,
   },
   row: {
     flexDirection: 'row',
@@ -144,23 +147,6 @@ const styles = StyleSheet.create({
   empty: {
     textAlign: 'center',
     marginTop: Spacing.six,
-  },
-  fab: {
-    position: 'absolute',
-    right: Spacing.four,
-    bottom: BottomTabInset + Spacing.three,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#208AEF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-  },
-  fabIcon: {
-    color: '#ffffff',
-    fontSize: 28,
-    lineHeight: 32,
   },
   pressed: {
     opacity: 0.7,

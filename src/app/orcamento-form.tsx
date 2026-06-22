@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -95,6 +95,20 @@ export default function BudgetFormScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {editingId !== null && (
+        <Stack.Screen
+          options={{
+            headerRight: () => (
+              <Pressable
+                onPress={handleDelete}
+                hitSlop={8}
+                style={({ pressed }) => pressed && styles.pressed}>
+                <ThemedText style={styles.deleteButtonText}>Excluir</ThemedText>
+              </Pressable>
+            ),
+          }}
+        />
+      )}
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <ThemedView type="backgroundElement" style={styles.monthBadge}>
           <ThemedText type="smallBold" themeColor="textSecondary">
@@ -148,16 +162,6 @@ export default function BudgetFormScreen() {
           style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
           <ThemedText style={styles.saveButtonText}>Salvar</ThemedText>
         </Pressable>
-
-        {editingId !== null && (
-          <Pressable
-            onPress={handleDelete}
-            style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}>
-            <ThemedText type="link" style={styles.deleteButtonText}>
-              Excluir previsão
-            </ThemedText>
-          </Pressable>
-        )}
       </ScrollView>
     </ThemedView>
   );
@@ -214,12 +218,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
   },
-  deleteButton: {
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-  },
   deleteButtonText: {
     color: '#e5484d',
+    fontWeight: '700',
   },
   pressed: {
     opacity: 0.8,

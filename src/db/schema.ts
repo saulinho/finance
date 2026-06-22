@@ -39,6 +39,12 @@ export async function migrateDb(db: SQLiteDatabase) {
       label TEXT NOT NULL
     );
 
+    -- Simple key-value store for app preferences (e.g. dismissed reminders).
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
+    );
+
     -- Monthly budget forecast lines (orçamento), with category/subcategory.
     CREATE TABLE IF NOT EXISTS budgets (
       id INTEGER PRIMARY KEY NOT NULL,

@@ -1,14 +1,16 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddFab } from '@/components/add-fab';
+import { NotificationPermissionBanner } from '@/components/notification-permission-banner';
 import { PayableRow } from '@/components/payable-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
-import { listPayables, setPaid } from '@/db/payables';
+import { Spacing, TabBarHeight } from '@/constants/theme';
+import { listPayables } from '@/db/payables';
 import type { PayableWithNames } from '@/db/types';
 import { formatBRL } from '@/lib/money';
 import { onPendingDrained } from '@/notifications/pending';
@@ -16,6 +18,7 @@ import { onPendingDrained } from '@/notifications/pending';
 export default function PayablesScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [payables, setPayables] = useState<PayableWithNames[]>([]);
 
   const reload = useCallback(() => {
@@ -43,20 +46,20 @@ export default function PayablesScreen() {
           </View>
         </View>
 
+        <View style={styles.banner}>
+          <NotificationPermissionBanner />
+        </View>
+
         <FlatList
           data={payables}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: insets.bottom + TabBarHeight + Spacing.six },
+          ]}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           renderItem={({ item }) => (
-            <PayableRow
-              payable={item}
-              onPress={() => router.push(`/conta?id=${item.id}`)}
-              onTogglePaid={async () => {
-                await setPaid(db, item.id, item.paid === 0);
-                reload();
-              }}
-            />
+            <PayableRow payable={item} onPress={() => router.push(`/conta?id=${item.id}`)} />
           )}
           ListEmptyComponent={
             <ThemedText themeColor="textSecondary" style={styles.empty}>
@@ -66,11 +69,7 @@ export default function PayablesScreen() {
         />
       </SafeAreaView>
 
-      <Pressable
-        onPress={() => router.push('/conta')}
-        style={({ pressed }) => [styles.fab, pressed && styles.pressed]}>
-        <ThemedText style={styles.fabIcon}>＋</ThemedText>
-      </Pressable>
+      <AddFab onPress={() => router.push('/conta')} accessibilityLabel="Nova conta" />
     </ThemedView>
   );
 }
@@ -87,32 +86,14 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.three,
     paddingBottom: Spacing.two,
   },
+  banner: {
+    paddingHorizontal: Spacing.four,
+  },
   listContent: {
     paddingHorizontal: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.six,
   },
   empty: {
     textAlign: 'center',
     marginTop: Spacing.six,
-  },
-  fab: {
-    position: 'absolute',
-    right: Spacing.four,
-    bottom: BottomTabInset + Spacing.three,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#208AEF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-  },
-  fabIcon: {
-    color: '#ffffff',
-    fontSize: 28,
-    lineHeight: 32,
-  },
-  pressed: {
-    opacity: 0.8,
   },
 });

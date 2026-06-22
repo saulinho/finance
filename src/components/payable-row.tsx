@@ -11,41 +11,39 @@ import { formatBRL } from '@/lib/money';
 type Props = {
   payable: PayableWithNames;
   onPress: () => void;
-  onTogglePaid: () => void;
 };
 
-export function PayableRow({ payable, onPress, onTogglePaid }: Props) {
+export function PayableRow({ payable, onPress }: Props) {
   const isPaid = payable.paid === 1;
   const categoria = [payable.category_name, payable.subcategory_name]
     .filter(Boolean)
     .join(' › ');
+  const statusLabel = isPaid
+    ? payable.due_date
+      ? `Pago em ${formatDateBR(payable.due_date)}`
+      : 'Pago'
+    : 'Aberto';
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
       <ThemedView type="backgroundElement" style={styles.container}>
-        <Pressable onPress={onTogglePaid} hitSlop={8} style={styles.checkWrapper}>
-          <ThemedView
-            type={isPaid ? 'backgroundSelected' : 'background'}
-            style={styles.check}>
-            <ThemedText themeColor={isPaid ? 'text' : 'textSecondary'}>
-              {isPaid ? '✓' : ''}
-            </ThemedText>
-          </ThemedView>
-        </Pressable>
-
         <View style={styles.body}>
           <ThemedText type="smallBold" style={isPaid && styles.paidText} numberOfLines={1}>
             {payable.supplier}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Vence {formatDateBR(payable.due_date)}
-            {categoria ? `  ·  ${categoria}` : ''}
-          </ThemedText>
+          {!!categoria && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {categoria}
+            </ThemedText>
+          )}
           {payable.source === 'notification' && (
             <ThemedText type="small" themeColor="textSecondary">
               ⚡ via notificação
             </ThemedText>
           )}
+          <ThemedText type="small" themeColor="textSecondary">
+            {statusLabel}
+          </ThemedText>
         </View>
 
         <ThemedText type="smallBold" style={isPaid && styles.paidText}>
@@ -63,16 +61,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     padding: Spacing.three,
     borderRadius: Spacing.three,
-  },
-  checkWrapper: {
-    justifyContent: 'center',
-  },
-  check: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   body: {
     flex: 1,

@@ -2,11 +2,11 @@ import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { Spacing, TabBarHeight } from '@/constants/theme';
 import { getMonthComparison, type MonthComparison } from '@/db/comparison';
 import { useTheme } from '@/hooks/use-theme';
 import { addMonths, currentMonth, formatMonthBR } from '@/lib/month';
@@ -16,6 +16,7 @@ const OVER_COLOR = '#e5484d';
 
 export default function ComparativoScreen() {
   const db = useSQLiteContext();
+  const insets = useSafeAreaInsets();
   const [month, setMonth] = useState(() => currentMonth());
   const [data, setData] = useState<MonthComparison>({
     categories: [],
@@ -43,7 +44,11 @@ export default function ComparativoScreen() {
           <Arrow label="›" onPress={() => setMonth((m) => addMonths(m, 1))} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: insets.bottom + TabBarHeight + Spacing.four },
+          ]}>
           <CompareCard
             title="Total do mês"
             budget={data.totalBudget}
@@ -169,7 +174,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.two,
   },
   card: {

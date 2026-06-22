@@ -21,7 +21,7 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="orcamento-form"
-            options={{ presentation: 'modal', title: 'Previsão de orçamento' }}
+            options={{ presentation: 'modal', title: 'Orçamento' }}
           />
         </Stack>
       </ThemeProvider>

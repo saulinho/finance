@@ -10,11 +10,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddFab } from '@/components/add-fab';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { Spacing, TabBarHeight } from '@/constants/theme';
 import {
   createCategory,
   createSubcategory,
@@ -37,6 +38,7 @@ type Prompt = {
 export default function CategoriesScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState<Category[]>([]);
   const [subsByCategory, setSubsByCategory] = useState<Record<number, Subcategory[]>>({});
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -69,6 +71,17 @@ export default function CategoriesScreen() {
     setPrompt(p);
   }
 
+  function openNewCategory() {
+    openPrompt({
+      title: 'Nova categoria',
+      initial: '',
+      onSubmit: async (name) => {
+        await createCategory(db, name);
+        reload();
+      },
+    });
+  }
+
   async function submitPrompt() {
     const value = promptValue.trim();
     if (!value || !prompt) {
@@ -91,25 +104,13 @@ export default function CategoriesScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <ThemedText type="subtitle">Categorias</ThemedText>
-          <Pressable
-            onPress={() =>
-              openPrompt({
-                title: 'Nova categoria',
-                initial: '',
-                onSubmit: async (name) => {
-                  await createCategory(db, name);
-                  reload();
-                },
-              })
-            }
-            style={({ pressed }) => pressed && styles.pressed}>
-            <ThemedText type="link" themeColor="text">
-              ＋ Nova
-            </ThemedText>
-          </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.listContent}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: insets.bottom + TabBarHeight + Spacing.four },
+          ]}>
           {categories.map((cat) => {
             const isOpen = expanded === cat.id;
             const subs = subsByCategory[cat.id] ?? [];
@@ -210,11 +211,13 @@ export default function CategoriesScreen() {
           })}
           {categories.length === 0 && (
             <ThemedText themeColor="textSecondary" style={styles.empty}>
-              Nenhuma categoria. Toque em ＋ Nova para criar.
+              Nenhuma categoria. Toque em ＋ para criar.
             </ThemedText>
           )}
         </ScrollView>
       </SafeAreaView>
+
+      <AddFab onPress={openNewCategory} accessibilityLabel="Nova categoria" />
 
       <Modal
         visible={prompt !== null}
@@ -293,7 +296,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.two,
   },
   card: {
