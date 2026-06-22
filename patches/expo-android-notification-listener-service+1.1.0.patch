@@ -1,0 +1,141 @@
+diff --git a/node_modules/expo-android-notification-listener-service/android/src/main/java/expo/modules/androidnotificationlistenerservice/ExpoAndroidNotificationListenerService.kt b/node_modules/expo-android-notification-listener-service/android/src/main/java/expo/modules/androidnotificationlistenerservice/ExpoAndroidNotificationListenerService.kt
+index 77e247a..0ba3837 100644
+--- a/node_modules/expo-android-notification-listener-service/android/src/main/java/expo/modules/androidnotificationlistenerservice/ExpoAndroidNotificationListenerService.kt
++++ b/node_modules/expo-android-notification-listener-service/android/src/main/java/expo/modules/androidnotificationlistenerservice/ExpoAndroidNotificationListenerService.kt
+@@ -1,5 +1,6 @@
+ package expo.modules.androidnotificationlistenerservice
+ 
++import android.content.Context
+ import android.service.notification.NotificationListenerService
+ import android.service.notification.StatusBarNotification
+ import android.app.Notification
+@@ -8,31 +9,20 @@ import android.graphics.Bitmap
+ import android.graphics.Canvas
+ import java.io.File
+ import java.io.FileOutputStream
++import org.json.JSONObject
+ 
+ class ExpoNotificationListenerService : NotificationListenerService() {
+     private var lastNotificationKey: String? = null
+     private var lastNotificationTime: Long = 0
+ 
+     override fun onNotificationPosted(sbn: StatusBarNotification) {
+-        val moduleInstance = ExpoAndroidNotificationListenerServiceModule.getInstance() ?: return
+-        
+-        val packageManager = applicationContext.packageManager
+         try {
+-            val applicationInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
+-            
+-            val iconPath = try {
+-                val appIcon = applicationInfo.loadIcon(packageManager)
+-                if (appIcon != null) {
+-                    saveAppIconToStorage(appIcon, sbn.packageName)
+-                } else {
+-                    null
+-                }
+-            } catch (e: Exception) {
+-                e.printStackTrace()
+-                null
+-            }
+-            
+-            if (!moduleInstance.isPackageAllowed(sbn.packageName)) {
++            // Background-safe filter: read the allowed packages persisted by the JS
++            // side, so filtering works even when the RN module isn't loaded.
++            // Empty set = allow all (matches the in-memory module semantics).
++            val prefs = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
++            val allowed = prefs.getStringSet(KEY_ALLOWED, emptySet()) ?: emptySet()
++            if (allowed.isNotEmpty() && !allowed.contains(sbn.packageName)) {
+                 return
+             }
+ 
+@@ -41,12 +31,16 @@ class ExpoNotificationListenerService : NotificationListenerService() {
+             if (sbn.key == lastNotificationKey && currentTime - lastNotificationTime < 500) {
+                 return
+             }
+-            
+             lastNotificationKey = sbn.key
+             lastNotificationTime = currentTime
+ 
+-            val notification = sbn.notification
+-            val extras = notification.extras
++            val extras = sbn.notification.extras
++            val appName = try {
++                val pm = applicationContext.packageManager
++                pm.getApplicationLabel(pm.getApplicationInfo(sbn.packageName, 0)).toString()
++            } catch (e: Exception) {
++                ""
++            }
+ 
+             val notificationData = mapOf(
+                 "packageName" to sbn.packageName,
+@@ -58,16 +52,39 @@ class ExpoNotificationListenerService : NotificationListenerService() {
+                 "summaryText" to (extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString() ?: ""),
+                 "postTime" to sbn.postTime,
+                 "key" to sbn.key,
+-                "appName" to (packageManager.getApplicationLabel(applicationInfo)?.toString() ?: ""),
+-                "appIconPath" to (iconPath ?: "")
++                "appName" to appName,
++                "appIconPath" to ""
+             )
+ 
++            // Persist to disk so the app can import it later, even if it was closed
++            // when the notification arrived.
++            persistNotification(notificationData)
++
++            // Also emit live for an instant update when the app is open.
+             ExpoAndroidNotificationListenerServiceModule.getInstance()?.emitNotificationEvent(notificationData)
+         } catch (e: Exception) {
+             e.printStackTrace()
+         }
+     }
+ 
++    private fun persistNotification(data: Map<String, Any>) {
++        try {
++            val json = JSONObject(data)
++            val file = File(applicationContext.filesDir, PENDING_FILE)
++            FileOutputStream(file, true).use { out ->
++                out.write((json.toString() + "\n").toByteArray(Charsets.UTF_8))
++            }
++        } catch (e: Exception) {
++            e.printStackTrace()
++        }
++    }
++
++    companion object {
++        const val PREFS_NAME = "finance_notif"
++        const val KEY_ALLOWED = "allowed_packages"
++        const val PENDING_FILE = "pending_notifications.jsonl"
++    }
++
+     private fun saveAppIconToStorage(drawable: Drawable?, packageName: String): String? {
+         if (drawable == null) return null
+         
+diff --git a/node_modules/expo-android-notification-listener-service/android/src/main/java/expo/modules/androidnotificationlistenerservice/ExpoAndroidNotificationListenerServiceModule.kt b/node_modules/expo-android-notification-listener-service/android/src/main/java/expo/modules/androidnotificationlistenerservice/ExpoAndroidNotificationListenerServiceModule.kt
+index 8c92037..4bec3ab 100644
+--- a/node_modules/expo-android-notification-listener-service/android/src/main/java/expo/modules/androidnotificationlistenerservice/ExpoAndroidNotificationListenerServiceModule.kt
++++ b/node_modules/expo-android-notification-listener-service/android/src/main/java/expo/modules/androidnotificationlistenerservice/ExpoAndroidNotificationListenerServiceModule.kt
+@@ -4,6 +4,7 @@ import expo.modules.kotlin.modules.Module
+ import expo.modules.kotlin.modules.ModuleDefinition
+ import android.service.notification.NotificationListenerService
+ import android.service.notification.StatusBarNotification
++import android.content.Context
+ import android.content.Intent
+ import android.provider.Settings
+ import expo.modules.kotlin.Promise
+@@ -53,6 +54,16 @@ class ExpoAndroidNotificationListenerServiceModule : Module() {
+ 
+         Function("setAllowedPackages") { packages: List<String> ->
+             allowedPackages = packages.toSet()
++            // Persist so the listener service can filter even when the RN module
++            // isn't loaded (app closed / background restart).
++            appContext.reactContext
++                ?.getSharedPreferences(
++                    ExpoNotificationListenerService.PREFS_NAME,
++                    Context.MODE_PRIVATE
++                )
++                ?.edit()
++                ?.putStringSet(ExpoNotificationListenerService.KEY_ALLOWED, packages.toSet())
++                ?.apply()
+         }
+     }
+ 
