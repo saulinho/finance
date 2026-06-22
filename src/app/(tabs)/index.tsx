@@ -5,6 +5,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddFab } from '@/components/add-fab';
+import { NotificationPermissionBanner } from '@/components/notification-permission-banner';
 import { PayableRow } from '@/components/payable-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -43,6 +44,10 @@ export default function PayablesScreen() {
               {formatBRL(pendingTotal)} em aberto
             </ThemedText>
           </View>
+        </View>
+
+        <View style={styles.banner}>
+          <NotificationPermissionBanner />
         </View>
 
         <FlatList
@@ -87,6 +92,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.two,
+  },
+  banner: {
+    paddingHorizontal: Spacing.four,
   },
   listContent: {
     paddingHorizontal: Spacing.four,
