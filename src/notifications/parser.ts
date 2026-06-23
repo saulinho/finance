@@ -84,9 +84,6 @@ export function parseNotification(data: NotificationData): ParseResult {
       category_id: null,
       subcategory_id: null,
       source: 'notification',
-      // The notification reports a payment that already happened, so the entry
-      // comes in already paid (its payment date is the notification's postTime).
-      paid: true,
     },
   };
 }
