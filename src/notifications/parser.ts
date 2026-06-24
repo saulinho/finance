@@ -1,5 +1,4 @@
 import type { PayableInput } from '@/db/types';
-import { toISODate } from '@/lib/date';
 import { parseBRLToCents } from '@/lib/money';
 
 import type { NotificationData } from './service';
@@ -73,14 +72,15 @@ export function parseNotification(data: NotificationData): ParseResult {
   if (isCredit && !isDebit) return { ok: false, reason: 'crédito (entrada)' };
 
   const supplier = extractSupplier(fullText) ?? data.appName ?? 'Lançamento';
-  const due_date = toISODate(new Date(data.postTime || Date.now()));
 
   return {
     ok: true,
     payable: {
       supplier,
       amount_cents,
-      due_date,
+      // Notification payables come in open: no payment date and unpaid. The
+      // user reviews the entry and fills these in when they tap it.
+      due_date: '',
       category_id: null,
       subcategory_id: null,
       source: 'notification',
