@@ -15,6 +15,7 @@ type Props = {
 
 export function PayableRow({ payable, onPress }: Props) {
   const isPaid = payable.paid === 1;
+  const uncategorized = payable.category_id === null || payable.subcategory_id === null;
   const categoria = [payable.category_name, payable.subcategory_name]
     .filter(Boolean)
     .join(' › ');
@@ -26,12 +27,18 @@ export function PayableRow({ payable, onPress }: Props) {
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView type="backgroundElement" style={styles.container}>
+      <ThemedView
+        type="backgroundElement"
+        style={[styles.container, uncategorized && styles.uncategorized]}>
         <View style={styles.body}>
           <ThemedText type="smallBold" style={isPaid && styles.paidText} numberOfLines={1}>
             {payable.supplier}
           </ThemedText>
-          {!!categoria && (
+          {uncategorized ? (
+            <ThemedText type="small" style={styles.uncategorizedText}>
+              Não categorizada
+            </ThemedText>
+          ) : (
             <ThemedText type="small" themeColor="textSecondary">
               {categoria}
             </ThemedText>
@@ -61,6 +68,14 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     padding: Spacing.three,
     borderRadius: Spacing.three,
+  },
+  uncategorized: {
+    borderWidth: 1,
+    borderColor: '#e5484d',
+  },
+  uncategorizedText: {
+    color: '#e5484d',
+    fontWeight: '700',
   },
   body: {
     flex: 1,

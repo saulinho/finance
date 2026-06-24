@@ -10,7 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { listCategories, listSubcategories } from '@/db/categories';
 import { createPayable, deletePayable, getPayable, updatePayable } from '@/db/payables';
-import type { Category, Subcategory } from '@/db/types';
+import type { Category, PayableSource, Subcategory } from '@/db/types';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDateBR, fromISODate, toISODate } from '@/lib/date';
 import { formatBRL, parseBRLToCents } from '@/lib/money';
@@ -31,6 +31,7 @@ export default function PayableFormScreen() {
   const [amountText, setAmountText] = useState('');
   const [dueDate, setDueDate] = useState(''); // '' = no payment date yet
   const [paid, setPaid] = useState(false);
+  const [source, setSource] = useState<PayableSource>('manual');
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -49,6 +50,7 @@ export default function PayableFormScreen() {
         setAmountText(formatBRL(p.amount_cents));
         setDueDate(p.due_date ?? '');
         setPaid(p.paid === 1);
+        setSource(p.source);
       });
     }
   }, [db, editingId]);
@@ -94,7 +96,19 @@ export default function PayableFormScreen() {
     }
   }
 
+  // New payables and notification-sourced ones must be categorized; the latter
+  // arrive without a category and need the user to classify them on review.
+  const categoryRequired = editingId === null || source === 'notification';
+
   async function handleSave() {
+    if (categoryRequired && categoryId === null) {
+      Alert.alert('Campo obrigatório', 'Selecione a categoria.');
+      return;
+    }
+    if (categoryRequired && subcategoryId === null) {
+      Alert.alert('Campo obrigatório', 'Selecione a subcategoria.');
+      return;
+    }
     if (!supplier.trim()) {
       Alert.alert('Campo obrigatório', 'Informe o nome do fornecedor.');
       return;
