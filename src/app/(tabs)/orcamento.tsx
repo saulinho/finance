@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddFab } from '@/components/add-fab';
@@ -11,6 +11,31 @@ import { Spacing, TabBarHeight } from '@/constants/theme';
 import { listBudgets, type BudgetWithNames } from '@/db/budgets';
 import { addMonths, currentMonth, formatMonthBR } from '@/lib/month';
 import { formatBRL } from '@/lib/money';
+
+type BudgetSection = {
+  key: string;
+  title: string;
+  subtotal: number;
+  data: BudgetWithNames[];
+};
+
+// Groups the month's budgets by category, mirroring the Comparativo screen.
+// `listBudgets` already orders by category name, so insertion order keeps the
+// sections sorted and the rows within each section in their original order.
+function groupByCategory(budgets: BudgetWithNames[]): BudgetSection[] {
+  const sections = new Map<string, BudgetSection>();
+  for (const b of budgets) {
+    const k = b.category_id === null ? 'none' : String(b.category_id);
+    let section = sections.get(k);
+    if (!section) {
+      section = { key: k, title: b.category_name ?? 'Sem categoria', subtotal: 0, data: [] };
+      sections.set(k, section);
+    }
+    section.subtotal += b.amount_cents;
+    section.data.push(b);
+  }
+  return [...sections.values()];
+}
 
 export default function BudgetScreen() {
   const db = useSQLiteContext();
@@ -26,6 +51,7 @@ export default function BudgetScreen() {
   useFocusEffect(reload);
 
   const total = budgets.reduce((sum, b) => sum + b.amount_cents, 0);
+  const sections = groupByCategory(budgets);
 
   return (
     <ThemedView style={styles.container}>
@@ -43,21 +69,30 @@ export default function BudgetScreen() {
           <MonthArrow label="›" onPress={() => setMonth((m) => addMonths(m, 1))} />
         </View>
 
-        <FlatList
-          data={budgets}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => String(item.id)}
+          stickySectionHeadersEnabled={false}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + TabBarHeight + Spacing.six },
           ]}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sectionHeader}>
+              <ThemedText type="smallBold" themeColor="textSecondary" numberOfLines={1}>
+                {section.title}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {formatBRL(section.subtotal)}
+              </ThemedText>
+            </View>
+          )}
           renderItem={({ item }) => {
-            const categoria = [item.category_name, item.subcategory_name]
-              .filter(Boolean)
-              .join(' › ');
-            const title = item.description || categoria || 'Sem categoria';
-            // Only show the category as a second line when it isn't already the title.
-            const showCategoria = !!categoria && !!item.description;
+            // The category is already the section header, so the row leads with
+            // the description and only falls back to the subcategory.
+            const title = item.description || item.subcategory_name || 'Sem subcategoria';
+            const showSubcategoria = !!item.subcategory_name && !!item.description;
             return (
               <Pressable
                 onPress={() => router.push(`/orcamento-form?id=${item.id}`)}
@@ -67,9 +102,9 @@ export default function BudgetScreen() {
                     <ThemedText type="smallBold" numberOfLines={1}>
                       {title}
                     </ThemedText>
-                    {showCategoria && (
+                    {showSubcategoria && (
                       <ThemedText type="small" themeColor="textSecondary">
-                        {categoria}
+                        {item.subcategory_name}
                       </ThemedText>
                     )}
                   </View>
@@ -132,6 +167,14 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.four,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.two,
   },
   row: {
     flexDirection: 'row',
