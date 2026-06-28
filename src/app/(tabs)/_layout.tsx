@@ -49,6 +49,13 @@ const TABS: TabDef[] = [
     iconActive: 'pricetags',
   },
   {
+    name: 'carteira',
+    href: '/carteira',
+    label: 'Carteira',
+    icon: 'card-outline',
+    iconActive: 'card',
+  },
+  {
     name: 'config',
     href: '/config',
     label: 'Config',

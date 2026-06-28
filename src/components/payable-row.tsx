@@ -50,6 +50,7 @@ export function PayableRow({ payable, onPress }: Props) {
           )}
           <ThemedText type="small" themeColor="textSecondary">
             {statusLabel}
+            {isPaid && payable.account_name ? ` · ${payable.account_name}` : ''}
           </ThemedText>
         </View>
 

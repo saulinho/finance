@@ -21,6 +21,14 @@ export async function migrateDb(db: SQLiteDatabase) {
       name TEXT NOT NULL
     );
 
+    -- Checking accounts and cards the user pays bills from.
+    CREATE TABLE IF NOT EXISTS accounts (
+      id INTEGER PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL, -- 'checking' | 'card'
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS payables (
       id INTEGER PRIMARY KEY NOT NULL,
       supplier TEXT NOT NULL,
@@ -28,6 +36,7 @@ export async function migrateDb(db: SQLiteDatabase) {
       due_date TEXT NOT NULL,
       category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
       subcategory_id INTEGER REFERENCES subcategories(id) ON DELETE SET NULL,
+      account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
       source TEXT NOT NULL DEFAULT 'manual',
       paid INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
@@ -70,7 +79,25 @@ export async function migrateDb(db: SQLiteDatabase) {
     );
   `);
 
+  await addColumnIfMissing(db, 'payables', 'account_id', 'INTEGER REFERENCES accounts(id) ON DELETE SET NULL');
+
   await seedIfEmpty(db);
+}
+
+/**
+ * Adds a column to an existing table when it isn't there yet. `CREATE TABLE IF
+ * NOT EXISTS` never alters a table that already exists, so new columns shipped
+ * after a database was first created need this lightweight migration.
+ */
+async function addColumnIfMissing(
+  db: SQLiteDatabase,
+  table: string,
+  column: string,
+  definition: string
+) {
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+  if (columns.some((c) => c.name === column)) return;
+  await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
 const SEED: Record<string, string[]> = {

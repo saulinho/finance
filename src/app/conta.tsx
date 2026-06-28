@@ -8,9 +8,11 @@ import { SelectField } from '@/components/select-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { listAccounts } from '@/db/accounts';
 import { listCategories, listSubcategories } from '@/db/categories';
 import { createPayable, deletePayable, getPayable, updatePayable } from '@/db/payables';
-import type { Category, PayableSource, Subcategory } from '@/db/types';
+import type { Account, Category, PayableSource, Subcategory } from '@/db/types';
+import { ACCOUNT_TYPE_LABEL } from '@/lib/accounts';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDateBR, fromISODate, toISODate } from '@/lib/date';
 import { formatBRL, parseBRLToCents } from '@/lib/money';
@@ -24,6 +26,7 @@ export default function PayableFormScreen() {
 
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
+  const [accountId, setAccountId] = useState<number | null>(null);
   const [supplier, setSupplier] = useState('');
   // Whether the user manually edited the supplier — once true we stop
   // auto-filling it from the selected subcategory.
@@ -35,16 +38,19 @@ export default function PayableFormScreen() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [showPicker, setShowPicker] = useState(false);
 
-  // Load categories + the existing payable (when editing).
+  // Load categories + accounts + the existing payable (when editing).
   useEffect(() => {
     listCategories(db).then(setCategories);
+    listAccounts(db).then(setAccounts);
     if (editingId !== null) {
       getPayable(db, editingId).then((p) => {
         if (!p) return;
         setCategoryId(p.category_id);
         setSubcategoryId(p.subcategory_id);
+        setAccountId(p.account_id);
         setSupplier(p.supplier);
         setSupplierTouched(true); // keep the saved supplier intact
         setAmountText(formatBRL(p.amount_cents));
@@ -70,6 +76,11 @@ export default function PayableFormScreen() {
 
   const amountCents = useMemo(() => parseBRLToCents(amountText), [amountText]);
 
+  const accountOptions = useMemo(
+    () => accounts.map((a) => ({ id: a.id, name: `${a.name} · ${ACCOUNT_TYPE_LABEL[a.type]}` })),
+    [accounts]
+  );
+
   function handleCategoryChange(value: number | null) {
     setCategoryId(value);
     setSubcategoryId(null);
@@ -88,11 +99,13 @@ export default function PayableFormScreen() {
   function togglePaid() {
     const next = !paid;
     setPaid(next);
-    // Marking as paid fills today's date (still editable); unmarking clears it.
+    // Marking as paid fills today's date (still editable); unmarking clears it
+    // along with the account it was paid from.
     if (next) {
       if (!dueDate) setDueDate(toISODate(new Date()));
     } else {
       setDueDate('');
+      setAccountId(null);
     }
   }
 
@@ -117,6 +130,10 @@ export default function PayableFormScreen() {
       Alert.alert('Campo obrigatório', 'Informe um valor válido.');
       return;
     }
+    if (paid && accountId === null) {
+      Alert.alert('Campo obrigatório', 'Informe a conta ou cartão usado no pagamento.');
+      return;
+    }
 
     const input = {
       supplier,
@@ -124,6 +141,7 @@ export default function PayableFormScreen() {
       due_date: dueDate,
       category_id: categoryId,
       subcategory_id: subcategoryId,
+      account_id: paid ? accountId : null,
       paid,
     };
 
@@ -238,6 +256,19 @@ export default function PayableFormScreen() {
             />
           )}
         </Field>
+
+        {paid && (
+          <SelectField
+            label="Pago com"
+            value={accountId}
+            options={accountOptions}
+            onSelect={setAccountId}
+            allowClear={false}
+            placeholder={
+              accountOptions.length === 0 ? 'Cadastre uma conta na aba Carteira' : 'Selecionar'
+            }
+          />
+        )}
 
         <Pressable
           onPress={handleSave}
