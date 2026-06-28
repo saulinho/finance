@@ -4,10 +4,10 @@ import {
   TabList,
   TabSlot,
   TabTrigger,
-  type TabListProps,
   type TabTriggerSlotProps,
 } from 'expo-router/ui';
-import { Pressable, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -16,6 +16,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const ACTIVE_COLOR = '#208AEF';
+const MENU_WIDTH = 280;
 
 type TabDef = {
   name: string;
@@ -65,49 +66,122 @@ const TABS: TabDef[] = [
 ];
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const [open, setOpen] = useState(false);
+
   return (
     <Tabs>
+      {/* Top app bar with the hamburger that opens the side menu. */}
+      <ThemedView
+        type="backgroundElement"
+        style={[
+          styles.topBar,
+          { paddingTop: insets.top, borderBottomColor: theme.backgroundSelected },
+        ]}>
+        <Pressable
+          onPress={() => setOpen(true)}
+          hitSlop={8}
+          accessibilityLabel="Abrir menu"
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}>
+          <Ionicons name="menu" size={26} color={theme.text} />
+        </Pressable>
+        <ThemedText style={styles.brand}>Finanças</ThemedText>
+      </ThemedView>
+
       <TabSlot style={styles.slot} />
+
+      {/* The TabList stays mounted (off-screen when closed) so the navigator
+          keeps its routes; it slides in as the menu when the hamburger opens. */}
       <TabList asChild>
-        <TabBar>
+        <SideMenu open={open} onClose={() => setOpen(false)} insetTop={insets.top}>
           {TABS.map((tab) => (
             <TabTrigger key={tab.name} name={tab.name} href={tab.href as never} asChild>
-              <TabButton tab={tab} />
+              <MenuItem tab={tab} onSelect={() => setOpen(false)} />
             </TabTrigger>
           ))}
-        </TabBar>
+        </SideMenu>
       </TabList>
     </Tabs>
   );
 }
 
-/** Bottom bar container; receives layout props from <TabList asChild>. */
-function TabBar({ children, ...props }: TabListProps) {
-  const insets = useSafeAreaInsets();
+/** Full-screen overlay (backdrop + left panel) holding the navigation items. */
+function SideMenu({
+  open,
+  onClose,
+  insetTop,
+  children,
+  ...props
+}: {
+  open: boolean;
+  onClose: () => void;
+  insetTop: number;
+  children: React.ReactNode;
+}) {
   const theme = useTheme();
+  const [translateX] = useState(() => new Animated.Value(-MENU_WIDTH));
+  const [backdrop] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    Animated.timing(translateX, {
+      toValue: open ? 0 : -MENU_WIDTH,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(backdrop, {
+      toValue: open ? 1 : 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [open, translateX, backdrop]);
+
   return (
-    <ThemedView
-      {...props}
-      type="backgroundElement"
-      style={[
-        styles.bar,
-        { paddingBottom: Math.max(insets.bottom, Spacing.two), borderTopColor: theme.backgroundSelected },
-      ]}>
-      {children}
-    </ThemedView>
+    <View {...props} pointerEvents={open ? 'auto' : 'none'} style={StyleSheet.absoluteFill}>
+      <Animated.View style={[styles.backdrop, { opacity: backdrop }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.menuPanel,
+          {
+            paddingTop: insetTop + Spacing.three,
+            backgroundColor: theme.backgroundElement,
+            borderRightColor: theme.backgroundSelected,
+            transform: [{ translateX }],
+          },
+        ]}>
+        {children}
+      </Animated.View>
+    </View>
   );
 }
 
-/** A single tab: distinct icon + always-visible label. */
-function TabButton({ tab, isFocused, ...props }: { tab: TabDef } & TabTriggerSlotProps) {
+/** A single navigation row inside the side menu. */
+function MenuItem({
+  tab,
+  isFocused,
+  onSelect,
+  onPress,
+  ...props
+}: { tab: TabDef; onSelect: () => void } & TabTriggerSlotProps) {
   const theme = useTheme();
-  const color = isFocused ? ACTIVE_COLOR : theme.textSecondary;
+  const color = isFocused ? ACTIVE_COLOR : theme.text;
   return (
-    <Pressable {...props} style={styles.tab}>
+    <Pressable
+      {...props}
+      onPress={(e) => {
+        onPress?.(e);
+        onSelect();
+      }}
+      style={({ pressed }) => [
+        styles.menuItem,
+        isFocused && { backgroundColor: theme.backgroundSelected },
+        pressed && styles.pressed,
+      ]}>
       <Ionicons name={isFocused ? tab.iconActive : tab.icon} size={22} color={color} />
-      <ThemedText type="small" style={[styles.label, { color }]} numberOfLines={1}>
-        {tab.label}
-      </ThemedText>
+      <ThemedText style={[styles.menuLabel, { color }]}>{tab.label}</ThemedText>
     </Pressable>
   );
 }
@@ -116,25 +190,55 @@ const styles = StyleSheet.create({
   slot: {
     flex: 1,
   },
-  bar: {
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.two,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  brand: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  backdrop: {
     position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  menuPanel: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: MENU_WIDTH,
+    paddingHorizontal: Spacing.two,
+    gap: Spacing.one,
+    borderRightWidth: StyleSheet.hairlineWidth,
+  },
+  menuItem: {
     flexDirection: 'row',
-    paddingTop: Spacing.two,
-    paddingHorizontal: Spacing.one,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  tab: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    paddingVertical: Spacing.one,
+    gap: Spacing.three,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Spacing.three,
   },
-  label: {
-    fontSize: 11,
-    lineHeight: 14,
+  menuLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });

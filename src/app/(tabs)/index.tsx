@@ -86,7 +86,7 @@ export default function PayablesScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.header}>
           <ThemedText type="subtitle">Contas a pagar</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">

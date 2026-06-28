@@ -55,7 +55,7 @@ export default function BudgetScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.header}>
           <ThemedText type="subtitle">Orçamento</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">

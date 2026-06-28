@@ -33,7 +33,7 @@ export default function ComparativoScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.header}>
           <ThemedText type="subtitle">Comparativo</ThemedText>
         </View>

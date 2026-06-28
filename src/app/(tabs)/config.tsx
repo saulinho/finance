@@ -58,7 +58,7 @@ export default function ConfigScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <ScrollView
           contentContainerStyle={[
             styles.content,

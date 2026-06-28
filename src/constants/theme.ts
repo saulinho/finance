@@ -61,5 +61,9 @@ export const Spacing = {
 
 export const MaxContentWidth = 800;
 
-/** Height of the custom bottom tab bar, excluding the bottom safe-area inset. */
-export const TabBarHeight = 54;
+/**
+ * Bottom spacing reserved for navigation. Navigation moved to a top hamburger
+ * menu, so there's no bottom bar to clear — kept at 0 (and named for the screens
+ * that still add it to their scroll padding) in case a bottom bar returns.
+ */
+export const TabBarHeight = 0;
