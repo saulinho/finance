@@ -14,16 +14,10 @@ type Props = {
 };
 
 export function PayableRow({ payable, onPress }: Props) {
-  const isPaid = payable.paid === 1;
   const uncategorized = payable.category_id === null || payable.subcategory_id === null;
   const categoria = [payable.category_name, payable.subcategory_name]
     .filter(Boolean)
     .join(' › ');
-  const statusLabel = isPaid
-    ? payable.due_date
-      ? `Pago em ${formatDateBR(payable.due_date)}`
-      : 'Pago'
-    : 'Aberto';
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
@@ -31,7 +25,7 @@ export function PayableRow({ payable, onPress }: Props) {
         type="backgroundElement"
         style={[styles.container, uncategorized && styles.uncategorized]}>
         <View style={styles.body}>
-          <ThemedText type="smallBold" style={isPaid && styles.paidText} numberOfLines={1}>
+          <ThemedText type="smallBold" numberOfLines={1}>
             {payable.supplier}
           </ThemedText>
           {uncategorized ? (
@@ -48,15 +42,14 @@ export function PayableRow({ payable, onPress }: Props) {
               ⚡ via notificação
             </ThemedText>
           )}
-          <ThemedText type="small" themeColor="textSecondary">
-            {statusLabel}
-            {isPaid && payable.account_name ? ` · ${payable.account_name}` : ''}
-          </ThemedText>
+          {!!payable.due_date && (
+            <ThemedText type="small" themeColor="textSecondary">
+              Pago em {formatDateBR(payable.due_date)}
+            </ThemedText>
+          )}
         </View>
 
-        <ThemedText type="smallBold" style={isPaid && styles.paidText}>
-          {formatBRL(payable.amount_cents)}
-        </ThemedText>
+        <ThemedText type="smallBold">{formatBRL(payable.amount_cents)}</ThemedText>
       </ThemedView>
     </Pressable>
   );
@@ -81,10 +74,6 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     gap: 2,
-  },
-  paidText: {
-    textDecorationLine: 'line-through',
-    opacity: 0.6,
   },
   pressed: {
     opacity: 0.7,

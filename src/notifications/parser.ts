@@ -1,4 +1,5 @@
 import type { PayableInput } from '@/db/types';
+import { toISODate } from '@/lib/date';
 import { parseBRLToCents } from '@/lib/money';
 
 import type { NotificationData } from './service';
@@ -78,9 +79,10 @@ export function parseNotification(data: NotificationData): ParseResult {
     payable: {
       supplier,
       amount_cents,
-      // Notification payables come in open: no payment date and unpaid. The
-      // user reviews the entry and fills these in when they tap it.
-      due_date: '',
+      // Notification payables come in open and uncategorized for review. Their
+      // due date (the month they're filed under) defaults to the notification's
+      // own date; the user can adjust it when tapping the entry.
+      due_date: toISODate(new Date(data.postTime)),
       category_id: null,
       subcategory_id: null,
       source: 'notification',

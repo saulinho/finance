@@ -15,25 +15,36 @@ import type { Account, Category, PayableSource, Subcategory } from '@/db/types';
 import { ACCOUNT_TYPE_LABEL } from '@/lib/accounts';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDateBR, fromISODate, toISODate } from '@/lib/date';
+import { currentMonth } from '@/lib/month';
 import { formatBRL, parseBRLToCents } from '@/lib/money';
 
 export default function PayableFormScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const theme = useTheme();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, month, account } = useLocalSearchParams<{
+    id?: string;
+    month?: string;
+    account?: string;
+  }>();
   const editingId = id ? Number(id) : null;
 
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
-  const [accountId, setAccountId] = useState<number | null>(null);
+  // Defaults to the wallet the form was opened from (the one being viewed).
+  const [accountId, setAccountId] = useState<number | null>(() =>
+    account ? Number(account) : null
+  );
   const [supplier, setSupplier] = useState('');
   // Whether the user manually edited the supplier — once true we stop
   // auto-filling it from the selected subcategory.
   const [supplierTouched, setSupplierTouched] = useState(false);
   const [amountText, setAmountText] = useState('');
-  const [dueDate, setDueDate] = useState(''); // '' = no payment date yet
-  const [paid, setPaid] = useState(false);
+  // Data de pagamento — always set; the month the entry is filed under. Defaults
+  // to the month the form was opened from (today when that's the current month).
+  const [dueDate, setDueDate] = useState(() =>
+    editingId !== null ? '' : defaultDueDate(month)
+  );
   const [source, setSource] = useState<PayableSource>('manual');
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -55,7 +66,6 @@ export default function PayableFormScreen() {
         setSupplierTouched(true); // keep the saved supplier intact
         setAmountText(formatBRL(p.amount_cents));
         setDueDate(p.due_date ?? '');
-        setPaid(p.paid === 1);
         setSource(p.source);
       });
     }
@@ -96,19 +106,6 @@ export default function PayableFormScreen() {
     }
   }
 
-  function togglePaid() {
-    const next = !paid;
-    setPaid(next);
-    // Marking as paid fills today's date (still editable); unmarking clears it
-    // along with the account it was paid from.
-    if (next) {
-      if (!dueDate) setDueDate(toISODate(new Date()));
-    } else {
-      setDueDate('');
-      setAccountId(null);
-    }
-  }
-
   // New payables and notification-sourced ones must be categorized; the latter
   // arrive without a category and need the user to classify them on review.
   const categoryRequired = editingId === null || source === 'notification';
@@ -130,8 +127,12 @@ export default function PayableFormScreen() {
       Alert.alert('Campo obrigatório', 'Informe um valor válido.');
       return;
     }
-    if (paid && accountId === null) {
-      Alert.alert('Campo obrigatório', 'Informe a conta ou cartão usado no pagamento.');
+    if (!dueDate) {
+      Alert.alert('Campo obrigatório', 'Informe a data de pagamento.');
+      return;
+    }
+    if (accountId === null) {
+      Alert.alert('Campo obrigatório', 'Selecione a carteira.');
       return;
     }
 
@@ -141,8 +142,8 @@ export default function PayableFormScreen() {
       due_date: dueDate,
       category_id: categoryId,
       subcategory_id: subcategoryId,
-      account_id: paid ? accountId : null,
-      paid,
+      account_id: accountId,
+      paid: true,
     };
 
     if (editingId !== null) {
@@ -225,20 +226,11 @@ export default function PayableFormScreen() {
           />
         </Field>
 
-        <Pressable
-          onPress={togglePaid}
-          style={({ pressed }) => [styles.paidRow, pressed && styles.pressed]}>
-          <ThemedView type={paid ? 'backgroundSelected' : 'backgroundElement'} style={styles.check}>
-            <ThemedText themeColor={paid ? 'text' : 'textSecondary'}>{paid ? '✓' : ''}</ThemedText>
-          </ThemedView>
-          <ThemedText type="smallBold">Pago</ThemedText>
-        </Pressable>
-
         <Field label="Data de pagamento">
           <Pressable onPress={() => setShowPicker(true)}>
             <ThemedView type="backgroundElement" style={styles.input}>
               <ThemedText themeColor={dueDate ? 'text' : 'textSecondary'}>
-                {dueDate ? formatDateBR(dueDate) : 'Selecionar (opcional)'}
+                {dueDate ? formatDateBR(dueDate) : 'Selecionar'}
               </ThemedText>
             </ThemedView>
           </Pressable>
@@ -257,18 +249,16 @@ export default function PayableFormScreen() {
           )}
         </Field>
 
-        {paid && (
-          <SelectField
-            label="Pago com"
-            value={accountId}
-            options={accountOptions}
-            onSelect={setAccountId}
-            allowClear={false}
-            placeholder={
-              accountOptions.length === 0 ? 'Cadastre uma conta na aba Carteira' : 'Selecionar'
-            }
-          />
-        )}
+        <SelectField
+          label="Carteira"
+          value={accountId}
+          options={accountOptions}
+          onSelect={setAccountId}
+          allowClear={false}
+          placeholder={
+            accountOptions.length === 0 ? 'Cadastre uma carteira na aba Carteira' : 'Selecionar'
+          }
+        />
 
         <Pressable
           onPress={handleSave}
@@ -278,6 +268,13 @@ export default function PayableFormScreen() {
       </ScrollView>
     </ThemedView>
   );
+}
+
+// Default vencimento for a new payable: today when opened from the current
+// month (or with no month), otherwise the first day of the chosen month.
+function defaultDueDate(month?: string): string {
+  if (!month || month === currentMonth()) return toISODate(new Date());
+  return `${month}-01`;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -310,19 +307,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
     fontSize: 16,
-  },
-  paidRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.one,
-  },
-  check: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   saveButton: {
     marginTop: Spacing.three,
