@@ -6,10 +6,12 @@ const SELECT_WITH_NAMES = `
   SELECT
     p.*,
     c.name AS category_name,
-    s.name AS subcategory_name
+    s.name AS subcategory_name,
+    a.name AS account_name
   FROM payables p
   LEFT JOIN categories c ON c.id = p.category_id
   LEFT JOIN subcategories s ON s.id = p.subcategory_id
+  LEFT JOIN accounts a ON a.id = p.account_id
 `;
 
 export function listPayables(db: SQLiteDatabase) {
@@ -25,13 +27,14 @@ export function getPayable(db: SQLiteDatabase, id: number) {
 export async function createPayable(db: SQLiteDatabase, input: PayableInput) {
   const result = await db.runAsync(
     `INSERT INTO payables
-       (supplier, amount_cents, due_date, category_id, subcategory_id, source, paid, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (supplier, amount_cents, due_date, category_id, subcategory_id, account_id, source, paid, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     input.supplier.trim(),
     input.amount_cents,
     input.due_date,
     input.category_id,
     input.subcategory_id,
+    input.account_id ?? null,
     input.source ?? 'manual',
     input.paid ? 1 : 0,
     new Date().toISOString()
@@ -43,13 +46,14 @@ export function updatePayable(db: SQLiteDatabase, id: number, input: PayableInpu
   return db.runAsync(
     `UPDATE payables SET
        supplier = ?, amount_cents = ?, due_date = ?,
-       category_id = ?, subcategory_id = ?, paid = ?
+       category_id = ?, subcategory_id = ?, account_id = ?, paid = ?
      WHERE id = ?`,
     input.supplier.trim(),
     input.amount_cents,
     input.due_date,
     input.category_id,
     input.subcategory_id,
+    input.account_id ?? null,
     input.paid ? 1 : 0,
     id
   );
