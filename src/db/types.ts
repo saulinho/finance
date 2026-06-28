@@ -9,6 +9,20 @@ export type Subcategory = {
   name: string;
 };
 
+export type AccountType = 'checking' | 'card';
+
+export type Account = {
+  id: number;
+  name: string;
+  type: AccountType;
+  created_at: string; // ISO datetime
+};
+
+export type AccountInput = {
+  name: string;
+  type: AccountType;
+};
+
 export type PayableSource = 'manual' | 'notification';
 
 export type Payable = {
@@ -18,15 +32,17 @@ export type Payable = {
   due_date: string; // ISO 'YYYY-MM-DD'
   category_id: number | null;
   subcategory_id: number | null;
+  account_id: number | null; // account/card used to pay it (when paid)
   source: PayableSource;
   paid: number; // 0 | 1
   created_at: string; // ISO datetime
 };
 
-/** A payable joined with the display names of its category/subcategory. */
+/** A payable joined with the display names of its category/subcategory/account. */
 export type PayableWithNames = Payable & {
   category_name: string | null;
   subcategory_name: string | null;
+  account_name: string | null;
 };
 
 export type PayableInput = {
@@ -35,6 +51,7 @@ export type PayableInput = {
   due_date: string;
   category_id: number | null;
   subcategory_id: number | null;
+  account_id?: number | null;
   source?: PayableSource;
   paid?: boolean;
 };
