@@ -101,10 +101,7 @@ export default function CategoriesScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.header}>
-          <ThemedText type="subtitle">Categorias</ThemedText>
-        </View>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
 
         <ScrollView
           contentContainerStyle={[
