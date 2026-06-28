@@ -81,6 +81,14 @@ export async function migrateDb(db: SQLiteDatabase) {
 
   await addColumnIfMissing(db, 'payables', 'account_id', 'INTEGER REFERENCES accounts(id) ON DELETE SET NULL');
 
+  // The payables list is now grouped by the month of `due_date`, so every row
+  // needs one. Backfill any dateless payables (older entries, pre-this-change
+  // notifications) with their creation date so they aren't hidden from the list.
+  await db.runAsync(
+    `UPDATE payables SET due_date = substr(created_at, 1, 10)
+     WHERE due_date IS NULL OR due_date = ''`
+  );
+
   await seedIfEmpty(db);
 }
 

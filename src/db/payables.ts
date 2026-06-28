@@ -14,10 +14,43 @@ const SELECT_WITH_NAMES = `
   LEFT JOIN accounts a ON a.id = p.account_id
 `;
 
-export function listPayables(db: SQLiteDatabase) {
+/**
+ * Entries paid from a given wallet whose payment date falls in the 'YYYY-MM'
+ * month, newest first (payment date, then id, both descending).
+ */
+export function listPayablesByMonthAndAccount(
+  db: SQLiteDatabase,
+  month: string,
+  accountId: number
+) {
   return db.getAllAsync<PayableWithNames>(
-    `${SELECT_WITH_NAMES} ORDER BY p.paid ASC, p.due_date ASC`
+    `${SELECT_WITH_NAMES}
+     WHERE substr(p.due_date, 1, 7) = ? AND p.account_id = ?
+     ORDER BY p.due_date DESC, p.id DESC`,
+    month,
+    accountId
   );
+}
+
+/**
+ * Entries with no wallet assigned yet (notification captures, older rows) —
+ * the "A revisar" bucket. Spans every month, newest first, so they can't get
+ * lost behind the month navigation.
+ */
+export function listUnassignedPayables(db: SQLiteDatabase) {
+  return db.getAllAsync<PayableWithNames>(
+    `${SELECT_WITH_NAMES}
+     WHERE p.account_id IS NULL
+     ORDER BY p.due_date DESC, p.id DESC`
+  );
+}
+
+/** How many entries still lack a wallet (drives the "A revisar" selector option). */
+export async function countUnassignedPayables(db: SQLiteDatabase) {
+  const row = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) AS count FROM payables WHERE account_id IS NULL'
+  );
+  return row?.count ?? 0;
 }
 
 export function getPayable(db: SQLiteDatabase, id: number) {
