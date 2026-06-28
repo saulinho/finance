@@ -23,6 +23,8 @@ export default function RootLayout() {
             name="orcamento-form"
             options={{ presentation: 'modal', title: 'Orçamento' }}
           />
+          <Stack.Screen name="categorias" options={{ title: 'Categorias' }} />
+          <Stack.Screen name="carteira" options={{ title: 'Carteira' }} />
         </Stack>
       </ThemeProvider>
     </SQLiteProvider>

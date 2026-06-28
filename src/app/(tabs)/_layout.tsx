@@ -35,25 +35,18 @@ const TABS: TabDef[] = [
     iconActive: 'wallet',
   },
   {
+    name: 'grafico',
+    href: '/grafico',
+    label: 'Gráfico',
+    icon: 'pie-chart-outline',
+    iconActive: 'pie-chart',
+  },
+  {
     name: 'comparativo',
     href: '/comparativo',
     label: 'Comparativo',
     icon: 'bar-chart-outline',
     iconActive: 'bar-chart',
-  },
-  {
-    name: 'categorias',
-    href: '/categorias',
-    label: 'Categorias',
-    icon: 'pricetags-outline',
-    iconActive: 'pricetags',
-  },
-  {
-    name: 'carteira',
-    href: '/carteira',
-    label: 'Carteira',
-    icon: 'card-outline',
-    iconActive: 'card',
   },
   {
     name: 'config',

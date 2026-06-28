@@ -62,9 +62,8 @@ export default function WalletScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.header}>
-          <ThemedText type="subtitle">Carteira</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Contas correntes e cartões usados nos pagamentos
           </ThemedText>

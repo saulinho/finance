@@ -47,6 +47,33 @@ const SPENT_SQL = `
   GROUP BY p.category_id, p.subcategory_id
 `;
 
+export type CategorySpend = {
+  id: number | null;
+  name: string;
+  total: number; // em centavos
+};
+
+const PAID_BY_CATEGORY_SQL = `
+  SELECT p.category_id AS id, c.name AS name, SUM(p.amount_cents) AS total
+  FROM payables p
+  LEFT JOIN categories c ON c.id = p.category_id
+  WHERE p.paid = 1 AND substr(p.due_date, 1, 7) = ?
+  GROUP BY p.category_id
+  ORDER BY total DESC
+`;
+
+/**
+ * Sums the month's paid payables (contas baixadas) per category, ordered from
+ * the highest spend to the lowest. Feeds the Comparativo bar chart.
+ */
+export async function getPaidByCategory(
+  db: SQLiteDatabase,
+  month: string
+): Promise<CategorySpend[]> {
+  const rows = await db.getAllAsync<CategorySpend>(PAID_BY_CATEGORY_SQL, month);
+  return rows.map((r) => ({ ...r, name: r.name ?? 'Sem categoria' }));
+}
+
 /**
  * Builds a per-category / per-subcategory comparison of the month's budget
  * (previsto) against the payables due that month (gasto).

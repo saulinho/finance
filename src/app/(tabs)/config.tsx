@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -23,6 +23,7 @@ import {
 
 export default function ConfigScreen() {
   const db = useSQLiteContext();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [granted, setGranted] = useState(() => isPermissionGranted());
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -65,6 +66,14 @@ export default function ConfigScreen() {
             { paddingBottom: insets.bottom + TabBarHeight + Spacing.four },
           ]}>
           <ThemedText type="subtitle">Configurações</ThemedText>
+
+          <View>
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+              Gerenciar
+            </ThemedText>
+            <ManageRow label="Categorias" onPress={() => router.push('/categorias')} />
+            <ManageRow label="Carteira" onPress={() => router.push('/carteira')} />
+          </View>
 
           {!isListenerAvailable && (
             <ThemedView type="backgroundElement" style={styles.notice}>
@@ -178,6 +187,19 @@ export default function ConfigScreen() {
   );
 }
 
+function ManageRow({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
+      <ThemedView type="backgroundElement" style={styles.manageRow}>
+        <ThemedText type="smallBold">{label}</ThemedText>
+        <ThemedText type="smallBold" themeColor="textSecondary">
+          ›
+        </ThemedText>
+      </ThemedView>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -195,6 +217,14 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   sectionLabel: {
+    marginBottom: Spacing.two,
+  },
+  manageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
     marginBottom: Spacing.two,
   },
   diagHeader: {
