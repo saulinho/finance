@@ -54,10 +54,11 @@ export async function migrateDb(db: SQLiteDatabase) {
       value TEXT NOT NULL
     );
 
-    -- Monthly budget forecast lines (orçamento), with category/subcategory.
+    -- Budget forecast lines (orçamento), with category/subcategory. These are
+    -- month-agnostic: a single set of forecasts that the Comparativo screen
+    -- reuses for every month it compares against.
     CREATE TABLE IF NOT EXISTS budgets (
       id INTEGER PRIMARY KEY NOT NULL,
-      month TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       amount_cents INTEGER NOT NULL,
       category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
@@ -80,6 +81,12 @@ export async function migrateDb(db: SQLiteDatabase) {
   `);
 
   await addColumnIfMissing(db, 'payables', 'account_id', 'INTEGER REFERENCES accounts(id) ON DELETE SET NULL');
+
+  // Budgets used to be scoped to a month; they're now a single, month-agnostic
+  // set. Drop the old column on databases that still carry it. Any pre-existing
+  // rows keep their forecasts (deduplicate manually if a category was budgeted
+  // across several months).
+  await dropColumnIfExists(db, 'budgets', 'month');
 
   // The payables list is now grouped by the month of `due_date`, so every row
   // needs one. Backfill any dateless payables (older entries, pre-this-change
@@ -106,6 +113,17 @@ async function addColumnIfMissing(
   const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
   if (columns.some((c) => c.name === column)) return;
   await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
+/**
+ * Removes a column from an existing table when it's still there. Mirrors
+ * `addColumnIfMissing` for schema fields that were dropped after a database was
+ * first created.
+ */
+async function dropColumnIfExists(db: SQLiteDatabase, table: string, column: string) {
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+  if (!columns.some((c) => c.name === column)) return;
+  await db.execAsync(`ALTER TABLE ${table} DROP COLUMN ${column}`);
 }
 
 const SEED: Record<string, string[]> = {

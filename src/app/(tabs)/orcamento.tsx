@@ -9,7 +9,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, TabBarHeight } from '@/constants/theme';
 import { listBudgets, type BudgetWithNames } from '@/db/budgets';
-import { addMonths, currentMonth, formatMonthBR } from '@/lib/month';
 import { formatBRL } from '@/lib/money';
 
 type BudgetSection = {
@@ -19,7 +18,7 @@ type BudgetSection = {
   data: BudgetWithNames[];
 };
 
-// Groups the month's budgets by category, mirroring the Comparativo screen.
+// Groups the budgets by category, mirroring the Comparativo screen.
 // `listBudgets` already orders by category name, so insertion order keeps the
 // sections sorted and the rows within each section in their original order.
 function groupByCategory(budgets: BudgetWithNames[]): BudgetSection[] {
@@ -41,12 +40,11 @@ export default function BudgetScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [month, setMonth] = useState(() => currentMonth());
   const [budgets, setBudgets] = useState<BudgetWithNames[]>([]);
 
   const reload = useCallback(() => {
-    listBudgets(db, month).then(setBudgets);
-  }, [db, month]);
+    listBudgets(db).then(setBudgets);
+  }, [db]);
 
   useFocusEffect(reload);
 
@@ -61,12 +59,6 @@ export default function BudgetScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             {formatBRL(total)} previstos
           </ThemedText>
-        </View>
-
-        <View style={styles.monthNav}>
-          <MonthArrow label="‹" onPress={() => setMonth((m) => addMonths(m, -1))} />
-          <ThemedText type="smallBold">{formatMonthBR(month)}</ThemedText>
-          <MonthArrow label="›" onPress={() => setMonth((m) => addMonths(m, 1))} />
         </View>
 
         <SectionList
@@ -115,27 +107,17 @@ export default function BudgetScreen() {
           }}
           ListEmptyComponent={
             <ThemedText themeColor="textSecondary" style={styles.empty}>
-              Nenhuma previsão para {formatMonthBR(month)}. Toque em ＋ para incluir.
+              Nenhuma previsão cadastrada. Toque em ＋ para incluir.
             </ThemedText>
           }
         />
       </SafeAreaView>
 
       <AddFab
-        onPress={() => router.push(`/orcamento-form?month=${month}`)}
+        onPress={() => router.push('/orcamento-form')}
         accessibilityLabel="Nova previsão"
       />
     </ThemedView>
-  );
-}
-
-function MonthArrow({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} hitSlop={12} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView type="backgroundElement" style={styles.arrow}>
-        <ThemedText type="smallBold">{label}</ThemedText>
-      </ThemedView>
-    </Pressable>
   );
 }
 
@@ -150,20 +132,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.two,
-  },
-  monthNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.three,
-  },
-  arrow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   listContent: {
     paddingHorizontal: Spacing.four,

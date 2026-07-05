@@ -25,6 +25,8 @@ type Row = {
   total: number;
 };
 
+// The budget is month-agnostic (a single set of forecasts), so — unlike the
+// spend query — this isn't filtered by month; every month compares against it.
 const BUDGET_SQL = `
   SELECT b.category_id, c.name AS category_name,
          b.subcategory_id, s.name AS subcategory_name,
@@ -32,7 +34,6 @@ const BUDGET_SQL = `
   FROM budgets b
   LEFT JOIN categories c ON c.id = b.category_id
   LEFT JOIN subcategories s ON s.id = b.subcategory_id
-  WHERE b.month = ?
   GROUP BY b.category_id, b.subcategory_id
 `;
 
@@ -75,15 +76,15 @@ export async function getPaidByCategory(
 }
 
 /**
- * Builds a per-category / per-subcategory comparison of the month's budget
- * (previsto) against the payables due that month (gasto).
+ * Builds a per-category / per-subcategory comparison of the (month-agnostic)
+ * budget (previsto) against the payables due in the given month (gasto).
  */
 export async function getMonthComparison(
   db: SQLiteDatabase,
   month: string
 ): Promise<MonthComparison> {
   const [budgetRows, spentRows] = await Promise.all([
-    db.getAllAsync<Row>(BUDGET_SQL, month),
+    db.getAllAsync<Row>(BUDGET_SQL),
     db.getAllAsync<Row>(SPENT_SQL, month),
   ]);
 
