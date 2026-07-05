@@ -11,17 +11,15 @@ import { createBudget, deleteBudget, getBudget, updateBudget } from '@/db/budget
 import { listCategories, listSubcategories } from '@/db/categories';
 import type { Category, Subcategory } from '@/db/types';
 import { useTheme } from '@/hooks/use-theme';
-import { currentMonth, formatMonthBR } from '@/lib/month';
 import { formatBRL, parseBRLToCents } from '@/lib/money';
 
 export default function BudgetFormScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const theme = useTheme();
-  const params = useLocalSearchParams<{ id?: string; month?: string }>();
+  const params = useLocalSearchParams<{ id?: string }>();
   const editingId = params.id ? Number(params.id) : null;
 
-  const [month, setMonth] = useState(() => params.month ?? currentMonth());
   const [description, setDescription] = useState('');
   const [amountText, setAmountText] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -35,7 +33,6 @@ export default function BudgetFormScreen() {
     if (editingId !== null) {
       getBudget(db, editingId).then((b) => {
         if (!b) return;
-        setMonth(b.month);
         setDescription(b.description);
         setAmountText(formatBRL(b.amount_cents));
         setCategoryId(b.category_id);
@@ -64,7 +61,6 @@ export default function BudgetFormScreen() {
       return;
     }
     const input = {
-      month,
       description,
       amount_cents: amountCents,
       category_id: categoryId,
@@ -110,13 +106,6 @@ export default function BudgetFormScreen() {
         />
       )}
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <ThemedView type="backgroundElement" style={styles.monthBadge}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            Mês
-          </ThemedText>
-          <ThemedText type="smallBold">{formatMonthBR(month)}</ThemedText>
-        </ThemedView>
-
         <Field label="Descrição (opcional)">
           <TextInput
             value={description}
@@ -185,14 +174,6 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.four,
     gap: Spacing.three,
-  },
-  monthBadge: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
   },
   field: {
     gap: Spacing.one,

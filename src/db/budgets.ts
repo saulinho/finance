@@ -2,7 +2,6 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 export type Budget = {
   id: number;
-  month: string; // 'YYYY-MM'
   description: string;
   amount_cents: number;
   category_id: number | null;
@@ -16,7 +15,6 @@ export type BudgetWithNames = Budget & {
 };
 
 export type BudgetInput = {
-  month: string;
   description: string;
   amount_cents: number;
   category_id: number | null;
@@ -33,10 +31,9 @@ const SELECT_WITH_NAMES = `
   LEFT JOIN subcategories s ON s.id = b.subcategory_id
 `;
 
-export function listBudgets(db: SQLiteDatabase, month: string) {
+export function listBudgets(db: SQLiteDatabase) {
   return db.getAllAsync<BudgetWithNames>(
-    `${SELECT_WITH_NAMES} WHERE b.month = ? ORDER BY c.name COLLATE NOCASE, b.id`,
-    month
+    `${SELECT_WITH_NAMES} ORDER BY c.name COLLATE NOCASE, b.id`
   );
 }
 
@@ -47,9 +44,8 @@ export function getBudget(db: SQLiteDatabase, id: number) {
 export async function createBudget(db: SQLiteDatabase, input: BudgetInput) {
   const result = await db.runAsync(
     `INSERT INTO budgets
-       (month, description, amount_cents, category_id, subcategory_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    input.month,
+       (description, amount_cents, category_id, subcategory_id, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
     input.description.trim(),
     input.amount_cents,
     input.category_id,
@@ -62,9 +58,8 @@ export async function createBudget(db: SQLiteDatabase, input: BudgetInput) {
 export function updateBudget(db: SQLiteDatabase, id: number, input: BudgetInput) {
   return db.runAsync(
     `UPDATE budgets SET
-       month = ?, description = ?, amount_cents = ?, category_id = ?, subcategory_id = ?
+       description = ?, amount_cents = ?, category_id = ?, subcategory_id = ?
      WHERE id = ?`,
-    input.month,
     input.description.trim(),
     input.amount_cents,
     input.category_id,
