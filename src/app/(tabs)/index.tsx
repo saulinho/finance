@@ -74,7 +74,8 @@ export default function PayablesScreen() {
   const accountOptions = useMemo(() => {
     const opts = accounts.map((a) => ({
       id: a.id,
-      name: `${a.name} · ${ACCOUNT_TYPE_LABEL[a.type]}`,
+      // Descrição - Número - Cartão/Conta Corrente (the número is dropped when empty).
+      name: [a.name, a.identifier, ACCOUNT_TYPE_LABEL[a.type]].filter(Boolean).join(' - '),
     }));
     if (reviewCount > 0) opts.push({ id: REVIEW, name: `A revisar (${reviewCount})` });
     return opts;

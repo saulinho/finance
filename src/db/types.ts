@@ -15,12 +15,14 @@ export type Account = {
   id: number;
   name: string;
   type: AccountType;
+  identifier: string; // card's last 4 digits or account number; may be empty
   created_at: string; // ISO datetime
 };
 
 export type AccountInput = {
   name: string;
   type: AccountType;
+  identifier: string;
 };
 
 export type PayableSource = 'manual' | 'notification';

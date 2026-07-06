@@ -15,7 +15,7 @@ import { ACCOUNT_TYPE_LABEL } from '@/lib/accounts';
 
 const TYPES: AccountType[] = ['checking', 'card'];
 
-type Editing = { id: number | null; name: string; type: AccountType };
+type Editing = { id: number | null; name: string; type: AccountType; identifier: string };
 
 export default function WalletScreen() {
   const db = useSQLiteContext();
@@ -37,10 +37,11 @@ export default function WalletScreen() {
       setEditing(null);
       return;
     }
+    const input = { name, type: editing.type, identifier: editing.identifier };
     if (editing.id === null) {
-      await createAccount(db, { name, type: editing.type });
+      await createAccount(db, input);
     } else {
-      await updateAccount(db, editing.id, { name, type: editing.type });
+      await updateAccount(db, editing.id, input);
     }
     setEditing(null);
     reload();
@@ -78,12 +79,20 @@ export default function WalletScreen() {
             <ThemedView key={account.id} type="backgroundElement" style={styles.card}>
               <Pressable
                 onPress={() =>
-                  setEditing({ id: account.id, name: account.name, type: account.type })
+                  setEditing({
+                    id: account.id,
+                    name: account.name,
+                    type: account.type,
+                    identifier: account.identifier,
+                  })
                 }
                 style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]}>
                 <ThemedText type="smallBold">{account.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
                   {ACCOUNT_TYPE_LABEL[account.type]}
+                  {account.identifier
+                    ? ` · ${account.type === 'card' ? 'final' : 'nº'} ${account.identifier}`
+                    : ''}
                 </ThemedText>
               </Pressable>
               <Pressable
@@ -105,7 +114,7 @@ export default function WalletScreen() {
       </SafeAreaView>
 
       <AddFab
-        onPress={() => setEditing({ id: null, name: '', type: 'checking' })}
+        onPress={() => setEditing({ id: null, name: '', type: 'checking', identifier: '' })}
         accessibilityLabel="Nova conta ou cartão"
       />
 
@@ -153,6 +162,19 @@ export default function WalletScreen() {
                   );
                 })}
               </View>
+
+              <TextInput
+                value={editing?.identifier ?? ''}
+                onChangeText={(identifier) => setEditing((e) => (e ? { ...e, identifier } : e))}
+                placeholder={
+                  editing?.type === 'card' ? '4 últimos dígitos (opcional)' : 'Número da conta (opcional)'
+                }
+                placeholderTextColor={theme.textSecondary}
+                keyboardType={editing?.type === 'card' ? 'number-pad' : 'default'}
+                maxLength={editing?.type === 'card' ? 4 : 20}
+                onSubmitEditing={submit}
+                style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
+              />
 
               <View style={styles.actions}>
                 <Pressable onPress={() => setEditing(null)} style={styles.actionButton}>
