@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "finance",
+    "name": "Orçamento Financeiro",
     "slug": "finance",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "finance",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -13,9 +13,8 @@
     "android": {
       "package": "com.saulo.finance",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/images/logo.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
