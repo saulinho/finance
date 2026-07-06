@@ -21,11 +21,13 @@ export async function migrateDb(db: SQLiteDatabase) {
       name TEXT NOT NULL
     );
 
-    -- Checking accounts and cards the user pays bills from.
+    -- Checking accounts and cards the user pays bills from. identifier holds
+    -- the card's last 4 digits or the account number (free-form, may be empty).
     CREATE TABLE IF NOT EXISTS accounts (
       id INTEGER PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
       type TEXT NOT NULL, -- 'checking' | 'card'
+      identifier TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL
     );
 
@@ -81,6 +83,7 @@ export async function migrateDb(db: SQLiteDatabase) {
   `);
 
   await addColumnIfMissing(db, 'payables', 'account_id', 'INTEGER REFERENCES accounts(id) ON DELETE SET NULL');
+  await addColumnIfMissing(db, 'accounts', 'identifier', "TEXT NOT NULL DEFAULT ''");
 
   // Budgets used to be scoped to a month; they're now a single, month-agnostic
   // set. Drop the old column on databases that still carry it. Any pre-existing

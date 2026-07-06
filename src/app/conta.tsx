@@ -87,7 +87,12 @@ export default function PayableFormScreen() {
   const amountCents = useMemo(() => parseBRLToCents(amountText), [amountText]);
 
   const accountOptions = useMemo(
-    () => accounts.map((a) => ({ id: a.id, name: `${a.name} · ${ACCOUNT_TYPE_LABEL[a.type]}` })),
+    () =>
+      accounts.map((a) => ({
+        id: a.id,
+        // Descrição - Número - Cartão/Conta Corrente (the número is dropped when empty).
+        name: [a.name, a.identifier, ACCOUNT_TYPE_LABEL[a.type]].filter(Boolean).join(' - '),
+      })),
     [accounts]
   );
 
