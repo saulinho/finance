@@ -64,17 +64,7 @@ export default function GraficoScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          {selected && (
-            <Pressable
-              onPress={() => setSelected(null)}
-              hitSlop={8}
-              style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedText type="smallBold" style={{ color: ACTIVE_COLOR }}>
-                ‹ Categorias
-              </ThemedText>
-            </Pressable>
-          )}
-          <ThemedText type="subtitle">{selected ? selected.name : 'Gráfico'}</ThemedText>
+          <ThemedText type="subtitle">Gráfico</ThemedText>
         </View>
 
         <View style={styles.monthNav}>
@@ -88,8 +78,19 @@ export default function GraficoScreen() {
             styles.content,
             { paddingBottom: insets.bottom + TabBarHeight + Spacing.four },
           ]}>
+          {selected && (
+            <Pressable
+              onPress={() => setSelected(null)}
+              hitSlop={8}
+              style={({ pressed }) => [styles.backLink, pressed && styles.pressed]}>
+              <ThemedText type="smallBold" style={{ color: ACTIVE_COLOR }}>
+                ‹ Categorias
+              </ThemedText>
+            </Pressable>
+          )}
+
           {selected ? (
-            <BarChart title={`Gasto em ${selected.name}`} data={paidBySubcategory} />
+            <BarChart title={selected.name} data={paidBySubcategory} />
           ) : (
             <BarChart title="Gasto por categoria" data={paidByCategory} onBarPress={setSelected} />
           )}
@@ -136,7 +137,7 @@ function BarChart({
             <View style={styles.barRow}>
               <View style={styles.barRowHeader}>
                 <ThemedText type="small" numberOfLines={1} style={styles.barName}>
-                  {d.name}
+                  {onBarPress ? `▸  ${d.name}` : d.name}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
                   {formatBRL(d.total)}
@@ -203,6 +204,10 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.four,
     gap: Spacing.two,
+  },
+  backLink: {
+    alignSelf: 'flex-start',
+    paddingVertical: Spacing.one,
   },
   chartCard: {
     padding: Spacing.three,
