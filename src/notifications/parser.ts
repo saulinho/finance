@@ -1,4 +1,4 @@
-import type { PayableInput } from '@/db/types';
+import type { Account, PayableInput } from '@/db/types';
 import { toISODate } from '@/lib/date';
 import { parseBRLToCents } from '@/lib/money';
 
@@ -55,7 +55,7 @@ export type ParseResult =
  * NOTE: notification wording varies a lot per bank — calibrate the regexes/
  * keywords against real samples.
  */
-export function parseNotification(data: NotificationData): ParseResult {
+export function parseNotification(data: NotificationData, accounts: Account[] = []): ParseResult {
   const fullText = [data.title, data.text, data.bigText, data.subText]
     .filter(Boolean)
     .join(' ')
@@ -74,6 +74,10 @@ export function parseNotification(data: NotificationData): ParseResult {
 
   const supplier = extractSupplier(fullText) ?? data.appName ?? 'Lançamento';
 
+  // Drop the amount before wallet matching so its digits (e.g. "1234" in
+  // "R$ 1234,56") can't be mistaken for a card's last 4 digits.
+  const account_id = matchAccountId(fullText.replace(match[0], ' '), accounts);
+
   return {
     ok: true,
     payable: {
@@ -85,9 +89,27 @@ export function parseNotification(data: NotificationData): ParseResult {
       due_date: toISODate(new Date(data.postTime)),
       category_id: null,
       subcategory_id: null,
+      account_id,
       source: 'notification',
     },
   };
+}
+
+/**
+ * Routes a notification to a wallet by matching its saved identifier (card's
+ * last 4 digits or account number) against the standalone digit sequences in
+ * the text. Returns the account id only when exactly one wallet matches — no
+ * match or an ambiguous match leaves the payable in the "A revisar" bucket.
+ */
+function matchAccountId(text: string, accounts: Account[]): number | null {
+  const runs = new Set(text.match(/\d+/g) ?? []);
+  if (runs.size === 0) return null;
+
+  const matches = accounts.filter((a) => {
+    const digits = a.identifier.replace(/\D/g, '');
+    return digits.length >= 3 && runs.has(digits);
+  });
+  return matches.length === 1 ? matches[0].id : null;
 }
 
 function extractSupplier(text: string): string | null {
