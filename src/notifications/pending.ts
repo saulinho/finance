@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { listAccounts } from '@/db/accounts';
 import { insertCaptured } from '@/db/captured';
 import { createPayable } from '@/db/payables';
 
@@ -31,6 +32,10 @@ export async function drainPending(db: SQLiteDatabase): Promise<number> {
   draining = true;
   let total = 0;
   try {
+    // Wallets are matched against each notification to auto-route it; load them
+    // once per drain (the set rarely changes mid-import).
+    const accounts = await listAccounts(db);
+
     // Loop to also pick up notifications written while we were processing.
     for (;;) {
       const info = await FileSystem.getInfoAsync(PENDING_FILE);
@@ -64,14 +69,18 @@ export async function drainPending(db: SQLiteDatabase): Promise<number> {
           appIconPath: raw.appIconPath ?? '',
         };
 
-        const result = parseNotification(data);
+        const result = parseNotification(data, accounts);
         await insertCaptured(db, {
           package: data.packageName,
           title: data.title,
           text: data.text,
           big_text: data.bigText,
           post_time: data.postTime,
-          result: result.ok ? 'conta criada' : `ignorada: ${result.reason}`,
+          result: result.ok
+            ? result.payable.account_id != null
+              ? 'conta criada (carteira)'
+              : 'conta criada'
+            : `ignorada: ${result.reason}`,
         });
         if (result.ok) {
           await createPayable(db, result.payable);
