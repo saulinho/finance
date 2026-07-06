@@ -1,16 +1,18 @@
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, TabBarHeight } from '@/constants/theme';
-import { getPaidByCategory, type CategorySpend } from '@/db/comparison';
+import { getPaidByCategory, getPaidBySubcategory, type CategorySpend } from '@/db/comparison';
 import { useTheme } from '@/hooks/use-theme';
 import { addMonths, currentMonth, formatMonthBR } from '@/lib/month';
-import { formatBRLCompact } from '@/lib/money';
+import { formatBRL } from '@/lib/money';
+
+const ACTIVE_COLOR = '#208AEF';
 
 // Distinct palette for the per-category chart. Categories beyond the palette
 // length cycle back to the start.
@@ -30,6 +32,9 @@ export default function GraficoScreen() {
   const insets = useSafeAreaInsets();
   const [month, setMonth] = useState(() => currentMonth());
   const [paidByCategory, setPaidByCategory] = useState<CategorySpend[]>([]);
+  // The category the user drilled into; null means we're showing categories.
+  const [selected, setSelected] = useState<CategorySpend | null>(null);
+  const [paidBySubcategory, setPaidBySubcategory] = useState<CategorySpend[]>([]);
 
   const reload = useCallback(() => {
     getPaidByCategory(db, month).then(setPaidByCategory);
@@ -37,11 +42,39 @@ export default function GraficoScreen() {
 
   useFocusEffect(reload);
 
+  // Load the drilled-in category's subcategory breakdown; also refreshes when
+  // the month changes while drilled in.
+  useEffect(() => {
+    if (!selected) {
+      setPaidBySubcategory([]);
+      return;
+    }
+    let cancelled = false;
+    getPaidBySubcategory(db, month, selected.id).then((rows) => {
+      if (!cancelled) setPaidBySubcategory(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [db, month, selected]);
+
+  const empty = selected ? paidBySubcategory.length === 0 : paidByCategory.length === 0;
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <ThemedText type="subtitle">Gráfico</ThemedText>
+          {selected && (
+            <Pressable
+              onPress={() => setSelected(null)}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedText type="smallBold" style={{ color: ACTIVE_COLOR }}>
+                ‹ Categorias
+              </ThemedText>
+            </Pressable>
+          )}
+          <ThemedText type="subtitle">{selected ? selected.name : 'Gráfico'}</ThemedText>
         </View>
 
         <View style={styles.monthNav}>
@@ -55,12 +88,17 @@ export default function GraficoScreen() {
             styles.content,
             { paddingBottom: insets.bottom + TabBarHeight + Spacing.four },
           ]}>
-          <PaidByCategoryChart data={paidByCategory} />
+          {selected ? (
+            <BarChart title={`Gasto em ${selected.name}`} data={paidBySubcategory} />
+          ) : (
+            <BarChart title="Gasto por categoria" data={paidByCategory} onBarPress={setSelected} />
+          )}
 
-          {paidByCategory.length === 0 && (
+          {empty && (
             <ThemedText themeColor="textSecondary" style={styles.empty}>
-              Sem lançamentos em {formatMonthBR(month)}. Baixe contas a pagar neste mês para ver o
-              gráfico.
+              {selected
+                ? `Sem subcategorias com lançamentos em ${selected.name} neste mês.`
+                : `Sem lançamentos em ${formatMonthBR(month)}. Baixe contas a pagar neste mês para ver o gráfico.`}
             </ThemedText>
           )}
         </ScrollView>
@@ -69,10 +107,18 @@ export default function GraficoScreen() {
   );
 }
 
-// Horizontal bar chart of the month's paid payables (contas baixadas) per
-// category, stacked top-to-bottom and already sorted highest-to-lowest by
-// `getPaidByCategory`.
-function PaidByCategoryChart({ data }: { data: CategorySpend[] }) {
+// Horizontal bar chart of paid payables (contas baixadas), stacked top-to-bottom
+// and already sorted highest-to-lowest by the query. When `onBarPress` is given,
+// each bar becomes tappable to drill into its breakdown.
+function BarChart({
+  title,
+  data,
+  onBarPress,
+}: {
+  title: string;
+  data: CategorySpend[];
+  onBarPress?: (item: CategorySpend) => void;
+}) {
   const theme = useTheme();
   const max = data.reduce((m, d) => Math.max(m, d.total), 0);
 
@@ -80,20 +126,20 @@ function PaidByCategoryChart({ data }: { data: CategorySpend[] }) {
 
   return (
     <ThemedView type="backgroundElement" style={styles.chartCard}>
-      <ThemedText type="smallBold">Gasto por categoria</ThemedText>
+      <ThemedText type="smallBold">{title}</ThemedText>
 
       <View style={styles.chartRows}>
         {data.map((d, i) => {
           const color = CHART_PALETTE[i % CHART_PALETTE.length];
           const key = d.id === null ? 'none' : String(d.id);
-          return (
-            <View key={key} style={styles.barRow}>
+          const row = (
+            <View style={styles.barRow}>
               <View style={styles.barRowHeader}>
                 <ThemedText type="small" numberOfLines={1} style={styles.barName}>
                   {d.name}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {formatBRLCompact(d.total)}
+                  {formatBRL(d.total)}
                 </ThemedText>
               </View>
               <View style={[styles.barTrack, { backgroundColor: theme.backgroundSelected }]}>
@@ -105,6 +151,16 @@ function PaidByCategoryChart({ data }: { data: CategorySpend[] }) {
                 />
               </View>
             </View>
+          );
+          return onBarPress ? (
+            <Pressable
+              key={key}
+              onPress={() => onBarPress(d)}
+              style={({ pressed }) => pressed && styles.pressed}>
+              {row}
+            </Pressable>
+          ) : (
+            <View key={key}>{row}</View>
           );
         })}
       </View>
