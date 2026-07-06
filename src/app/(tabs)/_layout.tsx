@@ -28,18 +28,18 @@ type TabDef = {
 const TABS: TabDef[] = [
   { name: 'contas', href: '/', label: 'Contas', icon: 'receipt-outline', iconActive: 'receipt' },
   {
-    name: 'orcamento',
-    href: '/orcamento',
-    label: 'Orçamento',
-    icon: 'wallet-outline',
-    iconActive: 'wallet',
-  },
-  {
     name: 'grafico',
     href: '/grafico',
     label: 'Gráfico',
     icon: 'pie-chart-outline',
     iconActive: 'pie-chart',
+  },
+  {
+    name: 'orcamento',
+    href: '/orcamento',
+    label: 'Orçamento',
+    icon: 'wallet-outline',
+    iconActive: 'wallet',
   },
   {
     name: 'comparativo',

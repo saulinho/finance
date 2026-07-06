@@ -7,17 +7,6 @@ export function formatBRL(cents: number): string {
 }
 
 /**
- * Compact currency for tight spaces like chart labels, e.g. 123456 -> "R$ 1,2 mil",
- * 1234567890 -> "R$ 12,3 mi". Drops the cents for values below a thousand reais.
- */
-export function formatBRLCompact(cents: number): string {
-  const reais = cents / 100;
-  if (reais >= 1_000_000) return `R$ ${(reais / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi`;
-  if (reais >= 1_000) return `R$ ${(reais / 1_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`;
-  return `R$ ${Math.round(reais).toLocaleString('pt-BR')}`;
-}
-
-/**
  * Parses free-form user input into integer cents. Accepts "1.234,56", "1234,56",
  * "1234.56" and "1234". Returns 0 when nothing numeric is found.
  */

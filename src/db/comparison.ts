@@ -63,9 +63,18 @@ const PAID_BY_CATEGORY_SQL = `
   ORDER BY total DESC
 `;
 
+const PAID_BY_SUBCATEGORY_SQL = `
+  SELECT p.subcategory_id AS id, s.name AS name, SUM(p.amount_cents) AS total
+  FROM payables p
+  LEFT JOIN subcategories s ON s.id = p.subcategory_id
+  WHERE p.paid = 1 AND substr(p.due_date, 1, 7) = ? AND p.category_id IS ?
+  GROUP BY p.subcategory_id
+  ORDER BY total DESC
+`;
+
 /**
  * Sums the month's paid payables (contas baixadas) per category, ordered from
- * the highest spend to the lowest. Feeds the Comparativo bar chart.
+ * the highest spend to the lowest. Feeds the Gráfico bar chart.
  */
 export async function getPaidByCategory(
   db: SQLiteDatabase,
@@ -73,6 +82,20 @@ export async function getPaidByCategory(
 ): Promise<CategorySpend[]> {
   const rows = await db.getAllAsync<CategorySpend>(PAID_BY_CATEGORY_SQL, month);
   return rows.map((r) => ({ ...r, name: r.name ?? 'Sem categoria' }));
+}
+
+/**
+ * Same as {@link getPaidByCategory} but drilled into a single category: sums the
+ * month's paid payables per subcategory. `categoryId` may be `null` to break
+ * down the "Sem categoria" bucket (`IS` matches NULL correctly).
+ */
+export async function getPaidBySubcategory(
+  db: SQLiteDatabase,
+  month: string,
+  categoryId: number | null
+): Promise<CategorySpend[]> {
+  const rows = await db.getAllAsync<CategorySpend>(PAID_BY_SUBCATEGORY_SQL, month, categoryId);
+  return rows.map((r) => ({ ...r, name: r.name ?? 'Sem subcategoria' }));
 }
 
 /**
