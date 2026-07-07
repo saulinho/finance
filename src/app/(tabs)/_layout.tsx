@@ -26,7 +26,7 @@ type TabDef = {
 };
 
 const TABS: TabDef[] = [
-  { name: 'contas', href: '/', label: 'Contas', icon: 'receipt-outline', iconActive: 'receipt' },
+  { name: 'contas', href: '/', label: 'Transações', icon: 'receipt-outline', iconActive: 'receipt' },
   {
     name: 'grafico',
     href: '/grafico',

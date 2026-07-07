@@ -89,7 +89,7 @@ export default function PayablesScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <ThemedText type="subtitle">Contas a pagar</ThemedText>
+          <ThemedText type="subtitle">Transações</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {formatBRL(total)} {isReview ? 'a revisar' : 'no mês'}
           </ThemedText>

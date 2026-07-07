@@ -17,7 +17,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
             name="conta"
-            options={{ presentation: 'modal', title: 'Conta a pagar' }}
+            options={{ presentation: 'modal', title: 'Transação' }}
           />
           <Stack.Screen
             name="orcamento-form"
