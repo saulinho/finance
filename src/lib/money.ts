@@ -7,6 +7,18 @@ export function formatBRL(cents: number): string {
 }
 
 /**
+ * Splits a total (in cents) into `count` monthly installments. Every part is
+ * equal except the first, which absorbs the rounding remainder so the parts
+ * always sum back to the total (e.g. 10000 in 3x → [3334, 3333, 3333]).
+ */
+export function splitInstallments(totalCents: number, count: number): number[] {
+  const parts = Math.max(1, Math.floor(count));
+  const base = Math.floor(totalCents / parts);
+  const remainder = totalCents - base * parts;
+  return Array.from({ length: parts }, (_, i) => (i === 0 ? base + remainder : base));
+}
+
+/**
  * Parses free-form user input into integer cents. Accepts "1.234,56", "1234,56",
  * "1234.56" and "1234". Returns 0 when nothing numeric is found.
  */
