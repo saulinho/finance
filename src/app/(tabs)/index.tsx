@@ -14,6 +14,7 @@ import { Spacing, TabBarHeight } from '@/constants/theme';
 import { listAccounts } from '@/db/accounts';
 import {
   countUnassignedPayables,
+  listPayablesByMonth,
   listPayablesByMonthAndAccount,
   listUnassignedPayables,
 } from '@/db/payables';
@@ -25,6 +26,8 @@ import { onPendingDrained } from '@/notifications/pending';
 
 // Sentinel wallet id for the "A revisar" bucket (entries without a wallet).
 const REVIEW = -1;
+// Sentinel wallet id for the "Todas as carteiras" view (every wallet, one month).
+const ALL = -2;
 
 export default function PayablesScreen() {
   const db = useSQLiteContext();
@@ -46,7 +49,11 @@ export default function PayablesScreen() {
       setReviewCount(review);
       setAccountId((cur) => {
         const stillValid =
-          cur === REVIEW ? review > 0 : cur !== null && rows.some((r) => r.id === cur);
+          cur === REVIEW
+            ? review > 0
+            : cur === ALL
+              ? rows.length > 0
+              : cur !== null && rows.some((r) => r.id === cur);
         return stillValid ? cur : (rows[0]?.id ?? (review > 0 ? REVIEW : null));
       });
     });
@@ -62,7 +69,9 @@ export default function PayablesScreen() {
     const load =
       accountId === REVIEW
         ? listUnassignedPayables(db)
-        : listPayablesByMonthAndAccount(db, month, accountId);
+        : accountId === ALL
+          ? listPayablesByMonth(db, month)
+          : listPayablesByMonthAndAccount(db, month, accountId);
     load.then(setPayables);
   }, [db, month, accountId]);
 
@@ -77,11 +86,14 @@ export default function PayablesScreen() {
       // Descrição - Número - Cartão/Conta Corrente (the número is dropped when empty).
       name: [a.name, a.identifier, ACCOUNT_TYPE_LABEL[a.type]].filter(Boolean).join(' - '),
     }));
+    // "Todas" aggregates every wallet for the month; only useful with wallets.
+    if (accounts.length > 0) opts.unshift({ id: ALL, name: 'Todas as carteiras' });
     if (reviewCount > 0) opts.push({ id: REVIEW, name: `A revisar (${reviewCount})` });
     return opts;
   }, [accounts, reviewCount]);
 
   const isReview = accountId === REVIEW;
+  const isAll = accountId === ALL;
   const total = payables.reduce((sum, p) => sum + p.amount_cents, 0);
   const hasAccounts = accounts.length > 0;
 
@@ -127,7 +139,11 @@ export default function PayablesScreen() {
           ]}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           renderItem={({ item }) => (
-            <PayableRow payable={item} onPress={() => router.push(`/conta?id=${item.id}`)} />
+            <PayableRow
+              payable={item}
+              showAccount={isAll}
+              onPress={() => router.push(`/conta?id=${item.id}`)}
+            />
           )}
           ListEmptyComponent={
             <ThemedText themeColor="textSecondary" style={styles.empty}>
@@ -143,7 +159,11 @@ export default function PayablesScreen() {
 
       {hasAccounts && !isReview && (
         <AddFab
-          onPress={() => router.push(`/conta?month=${month}&account=${accountId}`)}
+          onPress={() =>
+            router.push(
+              isAll ? `/conta?month=${month}` : `/conta?month=${month}&account=${accountId}`
+            )
+          }
           accessibilityLabel="Nova conta"
         />
       )}
