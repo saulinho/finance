@@ -14,9 +14,9 @@ import { createPayable, deletePayable, getPayable, updatePayable } from '@/db/pa
 import type { Account, Category, PayableSource, Subcategory } from '@/db/types';
 import { ACCOUNT_TYPE_LABEL } from '@/lib/accounts';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDateBR, fromISODate, toISODate } from '@/lib/date';
-import { currentMonth } from '@/lib/month';
-import { formatBRL, parseBRLToCents } from '@/lib/money';
+import { addMonthsToISODate, formatDateBR, fromISODate, toISODate } from '@/lib/date';
+import { currentMonth, formatMonthBR } from '@/lib/month';
+import { formatBRL, parseBRLToCents, splitInstallments } from '@/lib/money';
 
 export default function PayableFormScreen() {
   const db = useSQLiteContext();
@@ -46,6 +46,10 @@ export default function PayableFormScreen() {
     editingId !== null ? '' : defaultDueDate(month)
   );
   const [source, setSource] = useState<PayableSource>('manual');
+  // Number of monthly installments to spread this transaction across, starting
+  // at `dueDate`. 1 = single entry (the default). Always resets to 1 when
+  // editing — existing installments aren't tracked as a group.
+  const [installments, setInstallments] = useState(1);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -85,6 +89,11 @@ export default function PayableFormScreen() {
   }, [db, categoryId]);
 
   const amountCents = useMemo(() => parseBRLToCents(amountText), [amountText]);
+
+  const installmentAmounts = useMemo(
+    () => splitInstallments(amountCents, installments),
+    [amountCents, installments]
+  );
 
   const accountOptions = useMemo(
     () =>
@@ -141,20 +150,37 @@ export default function PayableFormScreen() {
       return;
     }
 
-    const input = {
-      supplier,
-      amount_cents: amountCents,
-      due_date: dueDate,
+    const baseSupplier = supplier.trim();
+    const count = installments;
+    const amounts = splitInstallments(amountCents, count);
+
+    // Fields shared by every installment; supplier/amount/due_date vary per part.
+    const commonInput = {
       category_id: categoryId,
       subcategory_id: subcategoryId,
       account_id: accountId,
       paid: true,
     };
+    // The i-th installment (0-based): total split N ways, spread across the N
+    // months following `dueDate`, with a "(i/N)" suffix when there's more than one.
+    const parcelInput = (i: number) => ({
+      ...commonInput,
+      supplier: count > 1 ? `${baseSupplier} (${i + 1}/${count})` : baseSupplier,
+      amount_cents: amounts[i],
+      due_date: addMonthsToISODate(dueDate, i),
+    });
 
     if (editingId !== null) {
-      await updatePayable(db, editingId, input);
+      // Reshape the edited entry into the first installment, then append the
+      // remaining ones to the following months.
+      await updatePayable(db, editingId, parcelInput(0));
+      for (let i = 1; i < count; i++) {
+        await createPayable(db, parcelInput(i));
+      }
     } else {
-      await createPayable(db, input);
+      for (let i = 0; i < count; i++) {
+        await createPayable(db, parcelInput(i));
+      }
     }
     router.back();
   }
@@ -254,6 +280,52 @@ export default function PayableFormScreen() {
           )}
         </Field>
 
+        <Field label="Parcelas">
+          <View style={styles.stepper}>
+            <Pressable
+              onPress={() => setInstallments((n) => Math.max(1, n - 1))}
+              disabled={installments <= 1}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.stepperButton,
+                { backgroundColor: theme.backgroundElement },
+                installments <= 1 && styles.stepperButtonDisabled,
+                pressed && styles.pressed,
+              ]}>
+              <ThemedText type="default" style={styles.stepperSign}>
+                −
+              </ThemedText>
+            </Pressable>
+            <ThemedText type="default" style={styles.stepperValue}>
+              {installments}x
+            </ThemedText>
+            <Pressable
+              onPress={() => setInstallments((n) => Math.min(99, n + 1))}
+              disabled={installments >= 99}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.stepperButton,
+                { backgroundColor: theme.backgroundElement },
+                installments >= 99 && styles.stepperButtonDisabled,
+                pressed && styles.pressed,
+              ]}>
+              <ThemedText type="default" style={styles.stepperSign}>
+                +
+              </ThemedText>
+            </Pressable>
+          </View>
+          {installments > 1 && amountCents > 0 && dueDate && (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.installmentHint}>
+              {installmentAmounts[0] === installmentAmounts[installments - 1]
+                ? `${installments}x de ${formatBRL(installmentAmounts[0])}`
+                : `1ª de ${formatBRL(installmentAmounts[0])}, demais de ${formatBRL(
+                    installmentAmounts[installments - 1]
+                  )}`}{' '}
+              · a partir de {formatMonthBR(dueDate.slice(0, 7))}
+            </ThemedText>
+          )}
+        </Field>
+
         <SelectField
           label="Carteira"
           value={accountId}
@@ -312,6 +384,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
     fontSize: 16,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  stepperButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperButtonDisabled: {
+    opacity: 0.4,
+  },
+  stepperSign: {
+    fontSize: 22,
+    lineHeight: 26,
+  },
+  stepperValue: {
+    minWidth: 44,
+    textAlign: 'center',
+    fontSize: 16,
+  },
+  installmentHint: {
+    marginTop: Spacing.two,
   },
   saveButton: {
     marginTop: Spacing.three,
