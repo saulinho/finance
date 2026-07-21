@@ -33,6 +33,20 @@ export function listPayablesByMonthAndAccount(
 }
 
 /**
+ * Every wallet-assigned entry whose payment date falls in the 'YYYY-MM' month,
+ * across all wallets (the "Todas" option), newest first. Excludes the unassigned
+ * "A revisar" bucket, which has its own selector option.
+ */
+export function listPayablesByMonth(db: SQLiteDatabase, month: string) {
+  return db.getAllAsync<PayableWithNames>(
+    `${SELECT_WITH_NAMES}
+     WHERE substr(p.due_date, 1, 7) = ? AND p.account_id IS NOT NULL
+     ORDER BY p.due_date DESC, p.id DESC`,
+    month
+  );
+}
+
+/**
  * Entries with no wallet assigned yet (notification captures, older rows) —
  * the "A revisar" bucket. Spans every month, newest first, so they can't get
  * lost behind the month navigation.

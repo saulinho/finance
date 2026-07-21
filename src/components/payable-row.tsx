@@ -11,9 +11,12 @@ import { formatBRL } from '@/lib/money';
 type Props = {
   payable: PayableWithNames;
   onPress: () => void;
+  // Show which wallet the entry belongs to — used in the "Todas" view, where
+  // rows from different wallets are mixed together.
+  showAccount?: boolean;
 };
 
-export function PayableRow({ payable, onPress }: Props) {
+export function PayableRow({ payable, onPress, showAccount = false }: Props) {
   const uncategorized = payable.category_id === null || payable.subcategory_id === null;
   const categoria = [payable.category_name, payable.subcategory_name]
     .filter(Boolean)
@@ -35,6 +38,11 @@ export function PayableRow({ payable, onPress }: Props) {
           ) : (
             <ThemedText type="small" themeColor="textSecondary">
               {categoria}
+            </ThemedText>
+          )}
+          {showAccount && !!payable.account_name && (
+            <ThemedText type="small" themeColor="textSecondary">
+              👛 {payable.account_name}
             </ThemedText>
           )}
           {payable.source === 'notification' && (
