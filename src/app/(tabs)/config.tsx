@@ -7,7 +7,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, TabBarHeight } from '@/constants/theme';
-import { clearCaptured, listCaptured, type CapturedNotification } from '@/db/captured';
+// DIAGNÓSTICO (descomentar para testar a captura de notificações):
+// import { clearCaptured, listCaptured, type CapturedNotification } from '@/db/captured';
 import {
   addNotificationSource,
   listNotificationSources,
@@ -27,7 +28,8 @@ export default function ConfigScreen() {
   const insets = useSafeAreaInsets();
   const [granted, setGranted] = useState(() => isPermissionGranted());
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [captured, setCaptured] = useState<CapturedNotification[]>([]);
+  // DIAGNÓSTICO (descomentar junto com a seção lá embaixo):
+  // const [captured, setCaptured] = useState<CapturedNotification[]>([]);
 
   // Re-check the system permission when returning to the app from settings.
   useEffect(() => {
@@ -43,7 +45,8 @@ export default function ConfigScreen() {
       setSelected(set);
       setAllowedPackages([...set]);
     });
-    listCaptured(db).then(setCaptured);
+    // DIAGNÓSTICO (descomentar junto com a seção lá embaixo):
+    // listCaptured(db).then(setCaptured);
   }, [db]);
 
   useFocusEffect(reload);
@@ -135,6 +138,8 @@ export default function ConfigScreen() {
                 })}
               </View>
 
+              {/* DIAGNÓSTICO (descomentar para testar a captura de notificações;
+                  requer também os 3 blocos "DIAGNÓSTICO" comentados lá em cima):
               <View>
                 <View style={styles.diagHeader}>
                   <ThemedText type="smallBold" themeColor="textSecondary">
@@ -179,6 +184,7 @@ export default function ConfigScreen() {
                   </ThemedView>
                 ))}
               </View>
+              */}
             </>
           )}
         </ScrollView>
